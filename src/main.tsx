@@ -27,7 +27,13 @@ const MockShellProvider = ({ children }: { children: React.ReactNode }) => {
         refreshContext: async () => { console.log('Mock refresh'); },
         setUser: () => { },
         setCurrentTenant: () => { },
-        setCurrentOrg: () => { }
+        setCurrentOrg: () => { },
+        accessToken: 'mock-access-token',
+        enabledModules: ['crm', 'inventory', 'accounting'],
+        isModuleEnabled: () => true,
+        toggleModule: async () => { console.log('Mock toggleModule'); },
+        refreshModules: async () => { console.log('Mock refreshModules'); },
+        modulesLoading: false
     };
 
     return (
