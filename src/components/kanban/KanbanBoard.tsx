@@ -6,7 +6,7 @@ interface KanbanBoardProps {
     deals: Deal[];
     stages: { id: string; name: DealStage }[];
     onDealClick: (deal: Deal) => void;
-    onStageChange: (deal: Deal, newStage: DealStage) => void;
+    onStageChange: (deal: Deal, newStageId: string) => void;
 }
 
 export const KanbanBoard = ({ deals, stages, onDealClick, onStageChange }: KanbanBoardProps) => {
@@ -42,21 +42,21 @@ export const KanbanBoard = ({ deals, stages, onDealClick, onStageChange }: Kanba
         setDragOverStage(null);
     };
 
-    const handleDrop = (e: React.DragEvent, targetStage: DealStage) => {
+    const handleDrop = (e: React.DragEvent, targetStageId: string) => {
         e.preventDefault();
         setDragOverStage(null);
         const dealId = e.dataTransfer.getData('dealId');
         const deal = deals.find(d => d.id === dealId);
 
-        if (deal && deal.stage !== targetStage) {
-            onStageChange(deal, targetStage);
+        if (deal && deal.stage_id !== targetStageId) {
+            onStageChange(deal, targetStageId);
         }
     };
 
     return (
         <div className="flex gap-6 overflow-x-auto pb-6 h-full min-h-[650px] scrollbar-hide">
             {stages.map((stage) => {
-                const stageDeals = deals.filter(d => d.stage === stage.name);
+                const stageDeals = deals.filter(d => (d.stage_id === stage.id) || (d.stage === stage.name));
                 const isOver = dragOverStage === stage.id;
 
                 return (
@@ -81,10 +81,10 @@ export const KanbanBoard = ({ deals, stages, onDealClick, onStageChange }: Kanba
                         <div
                             onDragOver={(e) => handleDragOver(e, stage.id)}
                             onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, stage.name)}
+                            onDrop={(e) => handleDrop(e, stage.id)}
                             className={`flex-1 flex flex-col gap-3 rounded-2xl p-3 min-h-[550px] transition-all duration-200 ${isOver
-                                    ? 'bg-blue-600/10 ring-2 ring-blue-500/50 ring-dashed border-transparent'
-                                    : 'bg-slate-900/40 border border-slate-800/60'
+                                ? 'bg-blue-600/10 ring-2 ring-blue-500/50 ring-dashed border-transparent'
+                                : 'bg-slate-900/40 border border-slate-800/60'
                                 }`}
                         >
                             {stageDeals.map((deal) => (
@@ -95,8 +95,8 @@ export const KanbanBoard = ({ deals, stages, onDealClick, onStageChange }: Kanba
                                     onDragEnd={handleDragEnd}
                                     onClick={() => onDealClick(deal)}
                                     className={`bg-slate-800 border-2 p-4 rounded-xl shadow-sm transition-all cursor-grab active:cursor-grabbing group ${draggedDealId === deal.id
-                                            ? 'border-blue-500/50 scale-95'
-                                            : 'border-slate-700/50 hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-900/20'
+                                        ? 'border-blue-500/50 scale-95'
+                                        : 'border-slate-700/50 hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-900/20'
                                         }`}
                                 >
                                     <div className="flex justify-between items-start mb-2">

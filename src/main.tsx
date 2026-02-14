@@ -33,7 +33,9 @@ const MockShellProvider = ({ children }: { children: React.ReactNode }) => {
         isModuleEnabled: () => true,
         toggleModule: async () => { console.log('Mock toggleModule'); },
         refreshModules: async () => { console.log('Mock refreshModules'); },
-        modulesLoading: false
+        modulesLoading: false,
+        emitNotification: async () => ({ success: true, notificationIds: [], errors: [] }),
+        recordActivity: async () => { }
     };
 
     return (

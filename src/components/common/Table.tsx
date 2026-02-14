@@ -2,7 +2,7 @@ import React from 'react';
 import { TableSkeleton } from './Skeleton';
 
 interface Column<T> {
-    header: string;
+    header: string | React.ReactNode;
     accessor: keyof T | ((item: T) => React.ReactNode);
     className?: string;
 }

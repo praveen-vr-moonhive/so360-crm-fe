@@ -37,9 +37,18 @@ export default defineConfig({
         cors: true, // Allow Shell to load remoteEntry.js
         proxy: {
             '/crm-api': {
-                target: 'http://localhost:3006',
+                target: 'http://localhost:3003',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/crm-api/, ''),
+            },
+            '/core-api': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/core-api/, ''),
+            },
+            '/v1': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
             },
         },
     },
@@ -48,9 +57,18 @@ export default defineConfig({
         cors: true,
         proxy: {
             '/crm-api': {
-                target: 'http://localhost:3006',
+                target: 'http://localhost:3003',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/crm-api/, ''),
+            },
+            '/core-api': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/core-api/, ''),
+            },
+            '/v1': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
             },
         },
     },

@@ -3,6 +3,7 @@ import { Modal } from '../common/Modal';
 import { crmService } from '../../services/crmService';
 import { AlertCircle } from 'lucide-react';
 import { CustomFieldDefinition } from '../../types/crm';
+import { useNotify, useActivity } from '@so360/shell-context';
 
 interface CreateLeadModalProps {
     isOpen: boolean;
@@ -12,6 +13,8 @@ interface CreateLeadModalProps {
 }
 
 export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: CreateLeadModalProps) => {
+    const { emitNotification } = useNotify();
+    const { recordActivity } = useActivity();
     const [formData, setFormData] = useState({
         company_name: '',
         contact_name: '',
@@ -23,14 +26,19 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
     });
 
     const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
+    const [leadStages, setLeadStages] = useState<{ id: string, name: string }[]>([]);
 
     useEffect(() => {
         const fetchSettings = async () => {
             try {
                 const settings = await crmService.getSettings();
                 setCustomFieldDefs(settings.lead_custom_fields);
+                setLeadStages(settings.lead_stages);
+                if (settings.lead_stages.length > 0 && !formData.status) {
+                    setFormData(prev => ({ ...prev, status: settings.lead_stages[0].name }));
+                }
             } catch (error) {
-                console.error('Failed to fetch lead custom fields', error);
+                console.error('Failed to fetch lead settings', error);
             }
         };
         if (isOpen) {
@@ -51,11 +59,13 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
         setIsSubmitting(true);
 
         try {
-            await crmService.createLead({
+            const newLead = await crmService.createLead({
                 ...formData,
                 activities: [],
                 notes: []
             });
+            // Fire-and-forget notification + activity
+            recordActivity({ eventType: 'lead.created', eventCategory: 'crm', description: `Created lead "${formData.company_name}"`, resourceType: 'lead', resourceId: newLead?.id }).catch(() => {});
             onSuccess();
             onClose();
         } catch (err) {
@@ -120,18 +130,33 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
                     />
                 </div>
 
-                <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Lead Source</label>
-                    <select
-                        value={formData.source}
-                        onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                        className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    >
-                        <option value="Website">Website</option>
-                        <option value="Referral">Referral</option>
-                        <option value="Cold Call">Cold Call</option>
-                        <option value="LinkedIn">LinkedIn</option>
-                    </select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-slate-400">Lead Source</label>
+                        <select
+                            value={formData.source}
+                            onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        >
+                            <option value="Website">Website</option>
+                            <option value="Referral">Referral</option>
+                            <option value="Cold Call">Cold Call</option>
+                            <option value="LinkedIn">LinkedIn</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-slate-400">Lead Stage</label>
+                        <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-800 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white"
+                        >
+                            {leadStages.map(stage => (
+                                <option key={stage.id} value={stage.name}>{stage.name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {customFieldDefs.length > 0 && (

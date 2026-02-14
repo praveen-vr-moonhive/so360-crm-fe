@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { crmService } from '../services/crmService';
 import { CRMSettings } from '../types/crm';
 import { Save, AlertCircle, Edit2, Archive, Plus, Trash2, Loader2, Zap, Trophy, ShieldCheck } from 'lucide-react';
+import { ToastContainer, useToast } from '../components/common/Toast';
 
-type SettingsTab = 'pipeline' | 'custom-fields' | 'sources' | 'scoring';
+type SettingsTab = 'pipeline' | 'lead-stages' | 'custom-fields' | 'sources' | 'scoring';
 
 const SettingsPage = () => {
+    const { toasts, showSuccess, showError, dismissToast } = useToast();
     const [settings, setSettings] = useState<CRMSettings | null>(null);
     const [activeTab, setActiveTab] = useState<SettingsTab>('pipeline');
     const [isLoading, setIsLoading] = useState(true);
@@ -30,10 +32,10 @@ const SettingsPage = () => {
         setIsSaving(true);
         try {
             await crmService.updateSettings(settings);
-            alert('Configuration saved!');
+            showSuccess('Configuration saved!');
         } catch (error) {
             console.error('Failed to save settings', error);
-            alert('Error saving settings.');
+            showError('Error saving settings.');
         } finally {
             setIsSaving(false);
         }
@@ -43,7 +45,8 @@ const SettingsPage = () => {
         if (!settings) return;
         const newStage = {
             id: `st-${Date.now()}`,
-            name: 'New Stage'
+            name: 'New Stage',
+            type: 'OPEN' as const
         };
         setSettings({
             ...settings,
@@ -54,7 +57,7 @@ const SettingsPage = () => {
     const removeStage = (id: string) => {
         if (!settings) return;
         if (settings.deal_stages.length <= 1) {
-            alert('Pipeline must have at least one stage.');
+            showError('Pipeline must have at least one stage.');
             return;
         }
         setSettings({
@@ -68,6 +71,37 @@ const SettingsPage = () => {
         const newStages = [...settings.deal_stages];
         newStages[idx].name = name;
         setSettings({ ...settings, deal_stages: newStages });
+    };
+
+    const addLeadStage = () => {
+        if (!settings) return;
+        const newStage = {
+            id: `st-${Date.now()}`,
+            name: 'New Lead Stage'
+        };
+        setSettings({
+            ...settings,
+            lead_stages: [...settings.lead_stages, newStage]
+        });
+    };
+
+    const removeLeadStage = (id: string) => {
+        if (!settings) return;
+        if (settings.lead_stages.length <= 1) {
+            showError('Lead stages must have at least one stage.');
+            return;
+        }
+        setSettings({
+            ...settings,
+            lead_stages: settings.lead_stages.filter(s => s.id !== id)
+        });
+    };
+
+    const updateLeadStageName = (idx: number, name: string) => {
+        if (!settings) return;
+        const newStages = [...settings.lead_stages];
+        newStages[idx].name = name;
+        setSettings({ ...settings, lead_stages: newStages });
     };
 
     const addSource = () => {
@@ -111,6 +145,7 @@ const SettingsPage = () => {
 
     return (
         <div className="p-8 max-w-5xl mx-auto">
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
             <header className="mb-10 flex justify-between items-center">
                 <div>
                     <h1 className="text-4xl font-black text-white tracking-tight">CRM Settings</h1>
@@ -132,6 +167,12 @@ const SettingsPage = () => {
                     className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'pipeline' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                     Pipeline
+                </button>
+                <button
+                    onClick={() => setActiveTab('lead-stages')}
+                    className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'lead-stages' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    Lead Stages
                 </button>
                 <button
                     onClick={() => setActiveTab('custom-fields')}
@@ -184,9 +225,71 @@ const SettingsPage = () => {
                                                 className="w-full bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 placeholder:text-slate-700"
                                             />
                                         </div>
+                                        <select
+                                            value={stage.type || 'OPEN'}
+                                            onChange={(e) => {
+                                                const newStages = [...settings.deal_stages];
+                                                newStages[idx].type = e.target.value as 'OPEN' | 'WON' | 'LOST';
+                                                setSettings({ ...settings, deal_stages: newStages });
+                                            }}
+                                            className={`bg-slate-900 border border-slate-700 text-[10px] font-black uppercase rounded-lg px-2 py-1 outline-none ${stage.type === 'WON' ? 'text-emerald-400 border-emerald-500/30' :
+                                                stage.type === 'LOST' ? 'text-rose-400 border-rose-500/30' :
+                                                    'text-slate-300'
+                                                }`}
+                                        >
+                                            <option value="OPEN">OPEN</option>
+                                            <option value="WON">WON</option>
+                                            <option value="LOST">LOST</option>
+                                        </select>
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => removeStage(stage.id)}
+                                                className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-600 hover:text-rose-400 transition-all"
+                                                title="Remove Stage"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {activeTab === 'lead-stages' && (
+                    <section className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
+                            <div>
+                                <h3 className="font-black text-white uppercase tracking-widest text-xs">Lead Lifecycle Stages</h3>
+                                <p className="text-[10px] text-slate-500 font-bold mt-1">THE ORDER DEFINES YOUR LEAD JOURNEY</p>
+                            </div>
+                            <button
+                                onClick={addLeadStage}
+                                className="text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg font-black flex items-center gap-1.5 transition-all shadow-lg active:scale-95"
+                            >
+                                <Plus size={12} /> ADD STAGE
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="space-y-3">
+                                {settings.lead_stages.map((stage, idx) => (
+                                    <div key={stage.id} className="flex items-center gap-4 bg-slate-950/50 border border-slate-800 p-3 rounded-xl group hover:border-slate-700 transition-all">
+                                        <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-[10px] font-black text-slate-500">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="text"
+                                                value={stage.name}
+                                                onChange={(e) => updateLeadStageName(idx, e.target.value)}
+                                                placeholder="Stage Name"
+                                                className="w-full bg-transparent border-none p-0 text-sm font-bold text-white focus:ring-0 placeholder:text-slate-700"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => removeLeadStage(stage.id)}
                                                 className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-600 hover:text-rose-400 transition-all"
                                                 title="Remove Stage"
                                             >
