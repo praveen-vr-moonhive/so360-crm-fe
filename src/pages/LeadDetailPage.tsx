@@ -14,6 +14,7 @@ import { ToastContainer, useToast } from '../components/common/Toast';
 import { Trophy, Zap, Info, TrendingUp } from 'lucide-react';
 import CreateDealModal from './components/CreateDealModal';
 import TaskModal from './components/TaskModal';
+import CustomerDetailsPanel from '../components/CustomerDetailsPanel';
 
 type TabType = 'activity' | 'notes' | 'tasks' | 'documents';
 
@@ -265,7 +266,7 @@ const LeadDetailPage = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-8">
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
             <header className="mb-8">
                 <Link to=".." className="flex items-center gap-1 text-slate-400 hover:text-slate-100 transition-colors mb-4 group">
@@ -915,6 +916,15 @@ const LeadDetailPage = () => {
                 </div>
 
                 <div className="lg:col-span-1 space-y-8">
+                    {/* Customer Details Panel (B2B/Tax/Credit) — only for type='customer' */}
+                    {lead.type === 'customer' && (
+                        <CustomerDetailsPanel
+                            lead={lead}
+                            onUpdate={(updated) => setLead(updated)}
+                            showToast={(msg, type) => type === 'success' ? showSuccess(msg) : showError(msg)}
+                        />
+                    )}
+
                     {/* Lead Score Card */}
                     <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-8 transform translate-x-4 -translate-y-4 opacity-5 pointer-events-none">

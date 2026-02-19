@@ -359,6 +359,52 @@ export const leadsApi = {
 };
 
 // ============================================================================
+// CUSTOMERS API
+// ============================================================================
+export const customersApi = {
+    /**
+     * GET /leads/customers - Get all customers with filtering and pagination
+     */
+    getAll: async (params?: {
+        skip?: number;
+        take?: number;
+        channel?: string;
+        category?: string;
+        q?: string;
+    }): Promise<any[]> => {
+        return apiClient.get<any[]>('/leads/customers', params);
+    },
+
+    /**
+     * GET /leads/customers/stats - Get customer statistics by channel and category
+     */
+    getStats: async (): Promise<any> => {
+        return apiClient.get<any>('/leads/customers/stats');
+    },
+
+    /**
+     * PATCH /leads/:id/promote - Promote a lead to customer
+     */
+    promote: async (leadId: string): Promise<any> => {
+        return apiClient.patch<any>(`/leads/${leadId}/promote`, {});
+    },
+
+    /**
+     * PATCH /leads/customers/:id/tax-id - Validate and set tax ID
+     */
+    validateTaxId: async (customerId: string, taxId: string): Promise<any> => {
+        return apiClient.patch<any>(`/leads/customers/${customerId}/tax-id`, { tax_id: taxId });
+    },
+
+    /**
+     * PATCH /leads/customers/:id/credit-limit - Update credit limit
+     */
+    updateCreditLimit: async (customerId: string, creditLimit: number): Promise<any> => {
+        return apiClient.patch<any>(`/leads/customers/${customerId}/credit-limit`, { credit_limit: creditLimit });
+    },
+};
+
+// ============================================================================
 // DEALS API
 // ============================================================================
 export const dealsApi = {
@@ -1411,6 +1457,27 @@ export const crmService = {
         create_project?: boolean;
     }): Promise<any> {
         return apiClient.post<any>(`/quotes/${quoteId}/convert`, data || {});
+    },
+
+    // Customers
+    getCustomers: async (filters?: { channel?: string; category?: string; q?: string; skip?: number; take?: number }): Promise<any[]> => {
+        return customersApi.getAll(filters);
+    },
+
+    getCustomerStats: async (): Promise<any> => {
+        return customersApi.getStats();
+    },
+
+    promoteToCustomer: async (leadId: string): Promise<any> => {
+        return customersApi.promote(leadId);
+    },
+
+    validateCustomerTaxId: async (customerId: string, taxId: string): Promise<any> => {
+        return customersApi.validateTaxId(customerId, taxId);
+    },
+
+    updateCustomerCreditLimit: async (customerId: string, creditLimit: number): Promise<any> => {
+        return customersApi.updateCreditLimit(customerId, creditLimit);
     },
 
     // Configuration

@@ -37,6 +37,7 @@ export interface Lead {
     source: string;
     owner: User;
     status: LeadStatus;
+    type?: 'lead' | 'customer';
     created_at: string;
     updated_at?: string;
     activities: Activity[];
@@ -44,6 +45,16 @@ export interface Lead {
     documents?: Attachment[];
     custom_fields?: Record<string, any>;
     creator?: User;
+    customer_category?: 'b2b' | 'b2c';
+    tax_id?: string;
+    tax_id_verified?: boolean;
+    tax_id_verified_at?: string;
+    credit_limit?: number;
+    credit_balance?: number;
+    acquisition_source?: string;
+    first_order_id?: string;
+    first_order_at?: string;
+    channel?: string;
 }
 
 export type DealStage = 'Lead' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Won' | 'Lost';
