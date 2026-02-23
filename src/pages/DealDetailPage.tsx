@@ -60,6 +60,19 @@ const DealDetailPage = () => {
         completion_percentage: number;
     } | null>(null);
 
+    const [invoiceStatus, setInvoiceStatus] = useState<{
+        has_invoice: boolean;
+        invoice_id?: string;
+        invoice_number?: string;
+        status?: string;
+        total?: number;
+        amount_paid?: number;
+        balance_due?: number;
+        issue_date?: string;
+        due_date?: string;
+        currency?: string;
+    } | null>(null);
+
     const fetchProjectDetails = async (projectId: string) => {
         try {
             const response = await fetch(`/projects-api/projects/${projectId}`);
@@ -111,6 +124,25 @@ const DealDetailPage = () => {
                 // Fetch project details if linked
                 if (dealData.project_id) {
                     await fetchProjectDetails(dealData.project_id);
+                }
+
+                // Fetch invoice status if deal has an invoice linked
+                if (dealData.invoice_id) {
+                    try {
+                        const invStatus = await crmService.getInvoiceStatus(id);
+                        setInvoiceStatus(invStatus);
+                    } catch (err) {
+                        console.warn('Failed to fetch invoice status:', err);
+                        // Fallback: show basic info from the deal object itself
+                        setInvoiceStatus({
+                            has_invoice: true,
+                            invoice_id: dealData.invoice_id,
+                            invoice_number: dealData.invoice_number || undefined,
+                            status: 'unknown',
+                        });
+                    }
+                } else {
+                    setInvoiceStatus(null);
                 }
             }
 
@@ -232,7 +264,7 @@ const DealDetailPage = () => {
     const handleInvoiceRequest = async () => {
         try {
             await crmService.requestInvoice(id);
-            showSuccess('Invoice request sent to accounting team');
+            showSuccess('Invoice created successfully');
             await crmService.logActivity({
                 lead_id: deal?.lead_id,
                 deal_id: id,
@@ -240,6 +272,8 @@ const DealDetailPage = () => {
                 notes: 'Requested invoice for deal from accounting',
                 date: new Date().toISOString()
             });
+            // Refresh deal data to show the newly linked invoice
+            fetchData();
         } catch (error: any) {
             if (error?.response?.status === 404 || error?.message?.includes('404')) {
                 showError('Invoice request feature is not yet configured. Contact your administrator.');
@@ -910,6 +944,81 @@ const DealDetailPage = () => {
                                         </a>
                                     )}
                                 </div>
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Linked Invoice Card */}
+                    {invoiceStatus?.has_invoice && (
+                        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-colors" />
+                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <Receipt size={14} className="text-emerald-400" /> Linked Invoice
+                            </h3>
+                            <div className="space-y-4">
+                                {invoiceStatus.invoice_number && (
+                                    <div>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Invoice Number</span>
+                                        <p className="text-sm font-bold text-white">{invoiceStatus.invoice_number}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase">Status</span>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                        invoiceStatus.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                        invoiceStatus.status === 'sent' || invoiceStatus.status === 'pending' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                                        invoiceStatus.status === 'overdue' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                        invoiceStatus.status === 'draft' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' :
+                                        invoiceStatus.status === 'partially_paid' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                        'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                    }`}>
+                                        {invoiceStatus.status === 'partially_paid' ? 'Partial' : invoiceStatus.status || 'Unknown'}
+                                    </span>
+                                </div>
+
+                                {invoiceStatus.total != null && (
+                                    <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Total</span>
+                                        <span className="text-sm font-bold text-emerald-400">
+                                            {invoiceStatus.currency || '$'}{Number(invoiceStatus.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {invoiceStatus.amount_paid != null && invoiceStatus.amount_paid > 0 && (
+                                    <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Paid</span>
+                                        <span className="text-sm font-bold text-emerald-400">
+                                            {invoiceStatus.currency || '$'}{Number(invoiceStatus.amount_paid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {invoiceStatus.balance_due != null && invoiceStatus.balance_due > 0 && (
+                                    <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Balance Due</span>
+                                        <span className="text-sm font-bold text-amber-400">
+                                            {invoiceStatus.currency || '$'}{Number(invoiceStatus.balance_due).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {invoiceStatus.due_date && (
+                                    <div className="flex justify-between items-center py-2 border-t border-slate-800/50">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase">Due Date</span>
+                                        <span className="text-[10px] font-bold text-slate-300">
+                                            {new Date(invoiceStatus.due_date).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                )}
+
+                                <a
+                                    href="/accounting/invoices"
+                                    className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-slate-700"
+                                >
+                                    <ExternalLink size={12} /> View in Accounting
+                                </a>
                             </div>
                         </section>
                     )}

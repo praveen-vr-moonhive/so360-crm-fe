@@ -1393,6 +1393,26 @@ export const crmService = {
         await apiClient.post(`/deals/${dealId}/request-invoice`, {});
     },
 
+    async getInvoiceStatus(dealId: string): Promise<{
+        has_invoice: boolean;
+        invoice_id?: string;
+        invoice_number?: string;
+        status?: string;
+        total?: number;
+        amount_paid?: number;
+        balance_due?: number;
+        issue_date?: string;
+        due_date?: string;
+        currency?: string;
+    }> {
+        try {
+            return await apiClient.get(`/deals/${dealId}/invoice-status`);
+        } catch (error) {
+            console.warn('[CRM] Failed to fetch invoice status:', error);
+            return { has_invoice: false };
+        }
+    },
+
     async linkProject(dealId: string, projectId: string): Promise<void> {
         console.log('Linking deal to project:', dealId, projectId);
         await apiClient.patch(`/deals/${dealId}/link-project`, { project_id: projectId });

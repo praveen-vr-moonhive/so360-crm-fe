@@ -75,6 +75,8 @@ export interface Deal {
     documents?: Attachment[];
     lead_id?: string;
     project_id?: string;
+    invoice_id?: string;
+    invoice_number?: string;
     custom_fields?: Record<string, any>;
     created_at: string;
 }
