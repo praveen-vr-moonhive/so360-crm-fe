@@ -25,6 +25,7 @@ const DashboardPage = () => {
     const [commerceKPIs, setCommerceKPIs] = useState<{
         revenue: number; orderCount: number; aov: number;
         repeatPurchaseRate: number; refundRate: number;
+        orderChartData: { labels: string[]; values: number[] };
     } | null>(null);
     const [isCommerceLoading, setIsCommerceLoading] = useState(false);
 
@@ -101,6 +102,7 @@ const DashboardPage = () => {
     };
 
     const maxRevenue = Math.max(...monthlyRevenue, 1);
+    const maxOrders = Math.max(...(commerceKPIs?.orderChartData?.values ?? [0]), 1);
     const maxActivity = Math.max(...teamStats.map((s: any) => s.activityCount), 1);
 
     return (
@@ -324,6 +326,50 @@ const DashboardPage = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Orders Distribution chart */}
+                    {commerceKPIs?.orderChartData && commerceKPIs.orderChartData.values.length > 0 && (
+                        <div className="mt-6 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="text-base font-black text-white tracking-tight">Orders Distribution</h3>
+                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Order volume by period</p>
+                                </div>
+                                <div className="px-3 py-1 bg-slate-800 rounded-lg flex items-center gap-2 text-xs font-bold text-slate-400">
+                                    <div className="w-2 h-2 rounded-full bg-cyan-500" /> DailyStore Orders
+                                </div>
+                            </div>
+
+                            <div className="h-48 flex items-end justify-between gap-2 px-4 relative">
+                                {/* Grid lines */}
+                                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20 z-0">
+                                    <div className="w-full h-px bg-slate-700 border-t border-dashed" />
+                                    <div className="w-full h-px bg-slate-700 border-t border-dashed" />
+                                    <div className="w-full h-px bg-slate-700 border-t border-dashed" />
+                                    <div className="w-full h-px bg-slate-700 border-t border-dashed" />
+                                </div>
+
+                                {commerceKPIs.orderChartData.values.map((val: number, idx: number) => {
+                                    const heightPct = Math.max((val / maxOrders) * 100, 4);
+                                    return (
+                                        <div key={idx} className="flex-1 flex flex-col justify-end group relative z-10 h-full">
+                                            <div
+                                                className="w-full bg-cyan-500/20 border-t-2 border-cyan-500 rounded-t-sm hover:bg-cyan-500/40 transition-all relative group-hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                                                style={{ height: `${heightPct}%` }}
+                                            >
+                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none border border-slate-700">
+                                                    {val} orders
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] uppercase font-bold text-slate-500 text-center mt-3 group-hover:text-cyan-400 transition-colors">
+                                                {commerceKPIs.orderChartData.labels[idx]}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </section>
             )}
 

@@ -1624,6 +1624,8 @@ export const crmService = {
         apiClient.get<any[]>(`/leads/${leadId}/storefront-newsletters`),
     getStorefrontIntelligence: async (leadId: string): Promise<any> =>
         apiClient.get<any>(`/leads/${leadId}/storefront-intelligence`),
+    getStorefrontRecommendations: async (leadId: string): Promise<any[]> =>
+        apiClient.get<any[]>(`/leads/${leadId}/storefront-recommendations`),
     getAllStorefrontSearches: async (params?: any): Promise<any[]> => {
         return apiClient.get<any[]>('/marketing/storefront-searches', params);
     },
@@ -1728,6 +1730,7 @@ export const crmService = {
         aov: number;
         repeatPurchaseRate: number;
         refundRate: number;
+        orderChartData: { labels: string[]; values: number[] };
     }> => apiClient.get('/analytics/commerce-kpis', params as any),
 
     // Configuration
