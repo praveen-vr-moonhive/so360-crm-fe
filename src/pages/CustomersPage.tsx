@@ -223,32 +223,36 @@ const CustomersPage = () => {
                 </div>
             ),
         },
-        {
-            header: 'Tax ID',
-            accessor: (c: any) =>
-                c.tax_id ? (
-                    <div className="flex items-center gap-1.5 text-sm">
-                        <span className="text-slate-300 font-mono text-xs">{c.tax_id}</span>
-                        {c.tax_id_verified && <CheckCircle2 size={14} className="text-emerald-400" />}
-                    </div>
-                ) : (
-                    <span className="text-slate-600 text-sm">-</span>
-                ),
-        },
-        {
-            header: 'Credit Limit',
-            accessor: (c: any) => {
-                const limit = parseFloat(c.credit_limit);
-                return limit > 0 ? (
-                    <span className="flex items-center gap-1.5 text-slate-300 text-sm">
-                        <CreditCard size={14} />
-                        {limit.toLocaleString()}
-                    </span>
-                ) : (
-                    <span className="text-slate-600 text-sm">-</span>
-                );
+        ...(categoryFilter !== 'b2c' ? [
+            {
+                header: 'Tax ID',
+                accessor: (c: any) =>
+                    c.customer_category === 'b2c' ? null :
+                    c.tax_id ? (
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <span className="text-slate-300 font-mono text-xs">{c.tax_id}</span>
+                            {c.tax_id_verified && <CheckCircle2 size={14} className="text-emerald-400" />}
+                        </div>
+                    ) : (
+                        <span className="text-slate-600 text-sm">-</span>
+                    ),
             },
-        },
+            {
+                header: 'Credit Limit',
+                accessor: (c: any) => {
+                    if (c.customer_category === 'b2c') return null;
+                    const limit = parseFloat(c.credit_limit);
+                    return limit > 0 ? (
+                        <span className="flex items-center gap-1.5 text-slate-300 text-sm">
+                            <CreditCard size={14} />
+                            {limit.toLocaleString()}
+                        </span>
+                    ) : (
+                        <span className="text-slate-600 text-sm">-</span>
+                    );
+                },
+            },
+        ] : []),
         {
             header: <SortableHeader label="Channel" field="channel" />,
             accessor: (c: any) => <ChannelBadge channel={c.channel} />,
