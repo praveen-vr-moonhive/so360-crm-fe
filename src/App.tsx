@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ShellContext } from '@so360/shell-context';
 import { crmService } from './services/crmService';
 
@@ -46,6 +46,18 @@ const CrmShellInitializer = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
 };
 
+// Guards a route behind a module enablement check — redirects to dashboard when disabled
+const ModuleGuard = ({ moduleId, children }: { moduleId: string; children: React.ReactNode }) => {
+    const shell = React.useContext(ShellContext);
+    const navigate = useNavigate();
+    const enabled = shell?.isModuleEnabled ? shell.isModuleEnabled(moduleId) : true;
+    useEffect(() => {
+        if (shell && !enabled) navigate('/crm/dashboard', { replace: true });
+    }, [enabled, shell, navigate]);
+    if (!shell || !enabled) return null;
+    return <>{children}</>;
+};
+
 // Lazy load pages for performance
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const LeadsPage = lazy(() => import('./pages/LeadsPage'));
@@ -64,6 +76,10 @@ const MarketingCampaignsPage = lazy(() => import('./pages/MarketingCampaignsPage
 const MarketingSegmentsPage = lazy(() => import('./pages/MarketingSegmentsPage'));
 const MarketingCampaignDetailPage = lazy(() => import('./pages/MarketingCampaignDetailPage'));
 const MarketingAbandonedCartDetailPage = lazy(() => import('./pages/MarketingAbandonedCartDetailPage'));
+const MarketingNewsletterPage = lazy(() => import('./pages/MarketingNewsletterPage'));
+const MarketingCouponsPage = lazy(() => import('./pages/MarketingCouponsPage'));
+const MarketingReviewsPage = lazy(() => import('./pages/MarketingReviewsPage'));
+const MarketingWishlistPage = lazy(() => import('./pages/MarketingWishlistPage'));
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
     return (
@@ -86,8 +102,8 @@ const App = () => {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="leads/:id" element={<LeadDetailPage />} />
-                    <Route path="customers" element={<CustomersPage />} />
-                    <Route path="customers/:id" element={<LeadDetailPage />} />
+                    <Route path="customers" element={<ModuleGuard moduleId="dailystore"><CustomersPage /></ModuleGuard>} />
+                    <Route path="customers/:id" element={<ModuleGuard moduleId="dailystore"><LeadDetailPage /></ModuleGuard>} />
                     <Route path="pipeline" element={<PipelinePage />} />
                     <Route path="deal/:id" element={<DealDetailPage />} />
                     <Route path="tasks" element={<TasksPage />} />
@@ -95,12 +111,16 @@ const App = () => {
                     <Route path="quotes" element={<QuotesPage />} />
                     <Route path="quotes/:id" element={<QuoteDetailPage />} />
                     <Route path="settings" element={<SettingsPage />} />
-                    <Route path="marketing/overview" element={<MarketingOverviewPage />} />
-                    <Route path="marketing/abandoned-carts" element={<MarketingAbandonedCartsPage />} />
-                    <Route path="marketing/abandoned-carts/:cartId" element={<MarketingAbandonedCartDetailPage />} />
-                    <Route path="marketing/campaigns" element={<MarketingCampaignsPage />} />
-                    <Route path="marketing/campaigns/:campaignId" element={<MarketingCampaignDetailPage />} />
-                    <Route path="marketing/segments" element={<MarketingSegmentsPage />} />
+                    <Route path="marketing/overview" element={<ModuleGuard moduleId="dailystore"><MarketingOverviewPage /></ModuleGuard>} />
+                    <Route path="marketing/abandoned-carts" element={<ModuleGuard moduleId="dailystore"><MarketingAbandonedCartsPage /></ModuleGuard>} />
+                    <Route path="marketing/abandoned-carts/:cartId" element={<ModuleGuard moduleId="dailystore"><MarketingAbandonedCartDetailPage /></ModuleGuard>} />
+                    <Route path="marketing/campaigns" element={<ModuleGuard moduleId="dailystore"><MarketingCampaignsPage /></ModuleGuard>} />
+                    <Route path="marketing/campaigns/:campaignId" element={<ModuleGuard moduleId="dailystore"><MarketingCampaignDetailPage /></ModuleGuard>} />
+                    <Route path="marketing/segments" element={<ModuleGuard moduleId="dailystore"><MarketingSegmentsPage /></ModuleGuard>} />
+                    <Route path="marketing/newsletter" element={<ModuleGuard moduleId="dailystore"><MarketingNewsletterPage /></ModuleGuard>} />
+                    <Route path="marketing/coupons" element={<ModuleGuard moduleId="dailystore"><MarketingCouponsPage /></ModuleGuard>} />
+                    <Route path="marketing/reviews" element={<ModuleGuard moduleId="dailystore"><MarketingReviewsPage /></ModuleGuard>} />
+                    <Route path="marketing/wishlist" element={<ModuleGuard moduleId="dailystore"><MarketingWishlistPage /></ModuleGuard>} />
                 </Routes>
             </CrmShellInitializer>
         </Layout>

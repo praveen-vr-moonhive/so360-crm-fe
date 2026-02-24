@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useShell } from '@so360/shell-context';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     ChevronLeft, Mail, Phone, Building2,
@@ -8,7 +9,7 @@ import {
     DollarSign, BarChart3, PieChart, Edit2, Trash2, X,
     File, Download, UploadCloud, FileIcon,
     Search, ShoppingBag, Heart, Star, ShoppingCart, ShieldCheck, Package,
-    LogIn
+    LogIn, Eye
 } from 'lucide-react';
 import { crmService, activitiesApi } from '../services/crmService';
 import { Lead, Deal, Task, Activity, ActivityType, CustomFieldDefinition, LeadScoringRule, User, Attachment, Note } from '../types/crm';
@@ -18,7 +19,10 @@ import CreateDealModal from './components/CreateDealModal';
 import TaskModal from './components/TaskModal';
 import CustomerDetailsPanel from '../components/CustomerDetailsPanel';
 
-type TabType = 'activity' | 'notes' | 'tasks' | 'documents' | 'storefront';
+type TabType = 'activity' | 'notes' | 'tasks' | 'documents';
+
+type SfTabType = 'wishlist' | 'search' | 'abandoned' | 'orders'
+              | 'reviews' | 'coupons' | 'viewed' | 'newsletters';
 
 interface TimelineEvent {
     id: string;
@@ -36,6 +40,8 @@ const LeadDetailPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { toasts, showSuccess, showError, dismissToast } = useToast();
+    const { isModuleEnabled } = useShell();
+    const isDailyStoreEnabled = isModuleEnabled('dailystore');
     const isCustomerDetailRoute = location.pathname.includes('/customers/');
     const backLabel = isCustomerDetailRoute ? 'Back to Customers' : 'Back to Leads';
     const [lead, setLead] = useState<Lead | null>(null);
@@ -44,6 +50,7 @@ const LeadDetailPage = () => {
     const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
     const [scoringRules, setScoringRules] = useState<LeadScoringRule[]>([]);
     const [activeTab, setActiveTab] = useState<TabType>('activity');
+    const [activeSfTab, setActiveSfTab] = useState<SfTabType>('wishlist');
     const [infoTab, setInfoTab] = useState<'profile' | 'additional'>('profile');
     const [isLoading, setIsLoading] = useState(true);
     const [isEditingInfo, setIsEditingInfo] = useState(false);
@@ -68,7 +75,9 @@ const LeadDetailPage = () => {
     const [sfOrders, setSfOrders] = useState<any[]>([]);
     const [sfCoupons, setSfCoupons] = useState<any[]>([]);
     const [sfNewsletters, setSfNewsletters] = useState<any[]>([]);
+    const [sfIntelligence, setSfIntelligence] = useState<any>(null);
     const [isSfLoading, setIsSfLoading] = useState(false);
+    const [sfTab, setSfTab] = useState<'shopping' | 'orders' | 'activity' | 'feedback' | 'marketing'>('shopping');
 
     const fetchLeadData = useCallback(async () => {
         try {
@@ -91,11 +100,11 @@ const LeadDetailPage = () => {
             setLeadStages(settingsData.lead_stages || []);
             setAllUsers(usersData);
 
-            // Fetch storefront data if lead is a customer and has storefront ID
-            if (leadData && leadData.storefront_customer_id) {
+            // Fetch storefront data if lead is a customer, has storefront ID, and DailyStore module is enabled
+            if (leadData && leadData.storefront_customer_id && isDailyStoreEnabled) {
                 setIsSfLoading(true);
                 try {
-                    const [sfAct, sfWish, sfRev, sfAbCarts, sfOrd, sfCoup, sfNews] = await Promise.all([
+                    const [sfAct, sfWish, sfRev, sfAbCarts, sfOrd, sfCoup, sfNews, sfIntel] = await Promise.all([
                         crmService.getStorefrontActivity(id),
                         crmService.getStorefrontWishlist(id),
                         crmService.getStorefrontReviews(id),
@@ -103,6 +112,7 @@ const LeadDetailPage = () => {
                         crmService.getStorefrontOrders(id),
                         crmService.getStorefrontCoupons(id),
                         crmService.getStorefrontNewsletters(id),
+                        crmService.getStorefrontIntelligence(id)
                     ]);
                     setSfActivities(sfAct);
                     setSfWishlist(sfWish);
@@ -111,6 +121,7 @@ const LeadDetailPage = () => {
                     setSfOrders(sfOrd);
                     setSfCoupons(sfCoup);
                     setSfNewsletters(sfNews);
+                    setSfIntelligence(sfIntel);
                 } catch (sfErr) {
                     console.error('Failed to fetch storefront data', sfErr);
                 } finally {
@@ -278,6 +289,10 @@ const LeadDetailPage = () => {
 
     const timeline = getAggregatedTimeline();
 
+    const sfSearches = sfActivities.filter(a => a.activity_type === 'search');
+    const sfViewed   = sfActivities.filter(a =>
+        ['view', 'product_view', 'page_view'].includes(a.activity_type)
+    );
 
     const calculateLegacyRevenue = () => {
         const earned = associatedDeals
@@ -332,6 +347,20 @@ const LeadDetailPage = () => {
             setIsDeleting(false);
         }
     };
+
+    const tabCls = (tab: TabType) =>
+        `flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+            activeTab === tab
+                ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5'
+                : 'text-slate-500 hover:text-slate-300'
+        }`;
+
+    const sfTabCls = (tab: SfTabType) =>
+        `flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+            activeSfTab === tab
+                ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5'
+                : 'text-slate-500 hover:text-slate-300'
+        }`;
 
     return (
         <div className="p-8">
@@ -567,43 +596,18 @@ const LeadDetailPage = () => {
                     {/* Workspace Tabs - Now below Profile Data */}
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-fit">
                         <div className="flex border-b border-slate-800 bg-slate-900/50">
-                            <button
-                                onClick={() => setActiveTab('activity')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'activity' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                            <button onClick={() => setActiveTab('activity')} className={tabCls('activity')}>
                                 <MessageSquare size={14} /> Activity
                             </button>
-                            <button
-                                onClick={() => setActiveTab('notes')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'notes' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                            <button onClick={() => setActiveTab('notes')} className={tabCls('notes')}>
                                 <FileText size={14} /> Notes
                             </button>
-                            <button
-                                onClick={() => setActiveTab('tasks')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'tasks' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                            <button onClick={() => setActiveTab('tasks')} className={tabCls('tasks')}>
                                 <CheckCircle2 size={14} /> Tasks ({associatedTasks.length})
                             </button>
-                            <button
-                                onClick={() => setActiveTab('documents')}
-                                className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'documents' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                            <button onClick={() => setActiveTab('documents')} className={tabCls('documents')}>
                                 <File size={14} /> Documents ({lead.documents?.length || 0})
                             </button>
-                            {lead.storefront_customer_id && (
-                                <button
-                                    onClick={() => setActiveTab('storefront')}
-                                    className={`flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'storefront' ? 'text-blue-400 border-b-2 border-blue-500 bg-blue-500/5' : 'text-slate-500 hover:text-slate-300'
-                                        }`}
-                                >
-                                    <ShoppingBag size={14} /> Storefront
-                                </button>
-                            )}
                         </div>
 
                         <div className="p-6">
@@ -992,46 +996,53 @@ const LeadDetailPage = () => {
                                 </div>
                             )}
 
-                            {activeTab === 'storefront' && (
-                                <div className="space-y-10">
-                                    {/* Activity Timeline */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Search size={14} className="text-blue-500" /> Storefront Activity
-                                        </h4>
-                                        {sfActivities.length === 0 ? (
-                                            <p className="text-xs text-slate-500 italic px-4">No recent activity tracked.</p>
-                                        ) : (
-                                            <div className="space-y-4 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-slate-800 ml-1">
-                                                {sfActivities.map((act) => (
-                                                    <div key={act.id} className="relative pl-8">
-                                                        <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center z-10">
-                                                            {act.activity_type === 'search' ? <Search size={10} className="text-blue-400" /> : <ShoppingBag size={10} className="text-purple-400" />}
-                                                        </div>
-                                                        <div className="bg-slate-950/30 border border-slate-800/50 p-3 rounded-xl">
-                                                            <div className="flex justify-between items-start mb-1">
-                                                                <span className="text-[10px] font-black uppercase text-slate-300">
-                                                                    {act.activity_type === 'search' ? `Searched for "${act.search_query}"` : act.activity_type.replace('_', ' ')}
-                                                                </span>
-                                                                <span className="text-[8px] text-slate-600 font-bold uppercase">
-                                                                    {new Date(act.created_at).toLocaleDateString()}
-                                                                </span>
-                                                            </div>
-                                                            {act.metadata?.results_count !== undefined && (
-                                                                <p className="text-[9px] text-slate-500">Found {act.metadata.results_count} results</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </section>
+                        </div>
+                    </div>
 
-                                    {/* Wishlist */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Heart size={14} className="text-rose-500" /> Wishlist ({sfWishlist.length})
-                                        </h4>
+                    {/* DailyStore Intelligence Card — only when storefront_customer_id is set and DailyStore module is enabled */}
+                    {lead.storefront_customer_id && isDailyStoreEnabled && (
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-fit">
+                            {/* Card header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+                                <div className="flex items-center gap-2">
+                                    <ShoppingBag size={14} className="text-purple-400" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        DailyStore Intelligence
+                                    </span>
+                                </div>
+                                {isSfLoading && <Loader2 size={12} className="animate-spin text-slate-500" />}
+                            </div>
+                            {/* Tab bar */}
+                            <div className="flex border-b border-slate-800 bg-slate-900/50 overflow-x-auto">
+                                <button onClick={() => setActiveSfTab('wishlist')} className={sfTabCls('wishlist')}>
+                                    <Heart size={14} /> Wishlist {sfWishlist.length > 0 && `(${sfWishlist.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('search')} className={sfTabCls('search')}>
+                                    <Search size={14} /> Search History {sfSearches.length > 0 && `(${sfSearches.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('abandoned')} className={sfTabCls('abandoned')}>
+                                    <ShoppingCart size={14} /> Abandoned Carts {sfAbandonedCarts.length > 0 && `(${sfAbandonedCarts.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('orders')} className={sfTabCls('orders')}>
+                                    <Package size={14} /> Orders {sfOrders.length > 0 && `(${sfOrders.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('reviews')} className={sfTabCls('reviews')}>
+                                    <Star size={14} /> Reviews {sfReviews.length > 0 && `(${sfReviews.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('coupons')} className={sfTabCls('coupons')}>
+                                    <Tag size={14} /> Coupons {sfCoupons.length > 0 && `(${sfCoupons.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('viewed')} className={sfTabCls('viewed')}>
+                                    <Eye size={14} /> Products Viewed {sfViewed.length > 0 && `(${sfViewed.length})`}
+                                </button>
+                                <button onClick={() => setActiveSfTab('newsletters')} className={sfTabCls('newsletters')}>
+                                    <Mail size={14} /> Newsletters {sfNewsletters.length > 0 && `(${sfNewsletters.length})`}
+                                </button>
+                            </div>
+                            {/* Content */}
+                            <div>
+                                {activeSfTab === 'wishlist' && (
+                                    <div className="p-6">
                                         {sfWishlist.length === 0 ? (
                                             <p className="text-xs text-slate-500 italic px-4">Wishlist is empty.</p>
                                         ) : (
@@ -1053,13 +1064,42 @@ const LeadDetailPage = () => {
                                                 ))}
                                             </div>
                                         )}
-                                    </section>
+                                    </div>
+                                )}
 
-                                    {/* Abandoned Carts */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <ShoppingCart size={14} className="text-amber-500" /> Abandoned Carts ({sfAbandonedCarts.length})
-                                        </h4>
+                                {activeSfTab === 'search' && (
+                                    <div className="p-6">
+                                        {sfSearches.length === 0 ? (
+                                            <p className="text-xs text-slate-500 italic px-4">No search history tracked.</p>
+                                        ) : (
+                                            <div className="space-y-3 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-slate-800 ml-1">
+                                                {sfSearches.map((act) => (
+                                                    <div key={act.id} className="relative pl-8">
+                                                        <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center z-10">
+                                                            <Search size={10} className="text-blue-400" />
+                                                        </div>
+                                                        <div className="bg-slate-950/30 border border-slate-800/50 p-3 rounded-xl">
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <span className="text-[10px] font-black uppercase text-slate-300">
+                                                                    Searched for "{act.search_query}"
+                                                                </span>
+                                                                <span className="text-[8px] text-slate-600 font-bold uppercase">
+                                                                    {new Date(act.created_at).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
+                                                            {act.metadata?.results_count !== undefined && (
+                                                                <p className="text-[9px] text-slate-500">Found {act.metadata.results_count} results</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeSfTab === 'abandoned' && (
+                                    <div className="p-6">
                                         {sfAbandonedCarts.length === 0 ? (
                                             <p className="text-xs text-slate-500 italic px-4">No abandoned carts found.</p>
                                         ) : (
@@ -1075,7 +1115,7 @@ const LeadDetailPage = () => {
                                                                 Last active: {new Date(cart.updated_at).toLocaleString()}
                                                             </p>
                                                         </div>
-                                                        <button 
+                                                        <button
                                                             onClick={() => navigate(`/crm/marketing/abandoned-carts/${cart.id}`)}
                                                             className="text-[10px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-1"
                                                         >
@@ -1085,13 +1125,42 @@ const LeadDetailPage = () => {
                                                 ))}
                                             </div>
                                         )}
-                                    </section>
+                                    </div>
+                                )}
 
-                                    {/* Reviews */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Star size={14} className="text-yellow-500" /> Product Reviews ({sfReviews.length})
-                                        </h4>
+                                {activeSfTab === 'orders' && (
+                                    <div className="p-6">
+                                        {sfOrders.length === 0 ? (
+                                            <p className="text-xs text-slate-500 italic px-4">No orders placed yet.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {sfOrders.map(order => (
+                                                    <div key={order.id}
+                                                         onClick={() => navigate(`/dailystore/orders/${order.id}`)}
+                                                         className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/50 rounded-xl cursor-pointer hover:border-emerald-500/20 transition-all group">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-black text-white">#{order.order_number || order.id.substring(0, 8)}</span>
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-black uppercase tracking-widest ${
+                                                                    order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                                                    order.status === 'cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                                                    'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                                                }`}>{order.status}</span>
+                                                            </div>
+                                                            <p className="text-[9px] text-slate-500 mt-0.5 font-bold uppercase tracking-widest">
+                                                                {new Date(order.created_at).toLocaleDateString()} · {order.currency} {parseFloat(order.total_amount).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                        <ExternalLink size={12} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeSfTab === 'reviews' && (
+                                    <div className="p-6">
                                         {sfReviews.length === 0 ? (
                                             <p className="text-xs text-slate-500 italic px-4">No reviews submitted yet.</p>
                                         ) : (
@@ -1119,8 +1188,8 @@ const LeadDetailPage = () => {
                                                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                                                 <Package size={10} /> {rev.items?.name || 'Unknown Product'}
                                                             </span>
-                                                            <a 
-                                                                href="/dailystore/reviews" 
+                                                            <a
+                                                                href="/dailystore/reviews"
                                                                 target="_blank"
                                                                 className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-1"
                                                             >
@@ -1131,46 +1200,11 @@ const LeadDetailPage = () => {
                                                 ))}
                                             </div>
                                         )}
-                                    </section>
+                                    </div>
+                                )}
 
-                                    {/* Orders */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Package size={14} className="text-emerald-500" /> Orders ({sfOrders.length})
-                                        </h4>
-                                        {sfOrders.length === 0 ? (
-                                            <p className="text-xs text-slate-500 italic px-4">No orders placed yet.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {sfOrders.map(order => (
-                                                    <div key={order.id}
-                                                         onClick={() => navigate(`/dailystore/orders/${order.id}`)}
-                                                         className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/50 rounded-xl cursor-pointer hover:border-emerald-500/20 transition-all group">
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-black text-white">#{order.order_number || order.id.substring(0, 8)}</span>
-                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded border font-black uppercase tracking-widest ${
-                                                                    order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                                                    order.status === 'cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                                                                    'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                                                }`}>{order.status}</span>
-                                                            </div>
-                                                            <p className="text-[9px] text-slate-500 mt-0.5 font-bold uppercase tracking-widest">
-                                                                {new Date(order.created_at).toLocaleDateString()} · {order.currency} {parseFloat(order.total_amount).toLocaleString()}
-                                                            </p>
-                                                        </div>
-                                                        <ExternalLink size={12} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </section>
-
-                                    {/* Coupons Applied */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Tag size={14} className="text-purple-500" /> Coupons Applied ({sfCoupons.length})
-                                        </h4>
+                                {activeSfTab === 'coupons' && (
+                                    <div className="p-6">
                                         {sfCoupons.length === 0 ? (
                                             <p className="text-xs text-slate-500 italic px-4">No coupons used yet.</p>
                                         ) : (
@@ -1188,13 +1222,35 @@ const LeadDetailPage = () => {
                                                 ))}
                                             </div>
                                         )}
-                                    </section>
+                                    </div>
+                                )}
 
-                                    {/* Newsletters */}
-                                    <section>
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                            <Mail size={14} className="text-blue-500" /> Newsletter Subscription
-                                        </h4>
+                                {activeSfTab === 'viewed' && (
+                                    <div className="p-6">
+                                        {sfViewed.length === 0 ? (
+                                            <p className="text-xs text-slate-500 italic px-4">No product views tracked.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {sfViewed.map((act) => (
+                                                    <div key={act.id} className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/50 rounded-xl">
+                                                        <div>
+                                                            <p className="text-xs font-black text-slate-300">
+                                                                {act.metadata?.item_name || act.metadata?.product_name || act.activity_type.replace(/_/g, ' ')}
+                                                            </p>
+                                                            <p className="text-[9px] text-slate-500 mt-0.5 uppercase tracking-widest font-bold">
+                                                                {new Date(act.created_at).toLocaleDateString()}
+                                                            </p>
+                                                        </div>
+                                                        <Eye size={12} className="text-cyan-500/50" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeSfTab === 'newsletters' && (
+                                    <div className="p-6">
                                         {sfNewsletters.length === 0 ? (
                                             <p className="text-xs text-slate-500 italic px-4">Not subscribed to any newsletter.</p>
                                         ) : (
@@ -1218,11 +1274,11 @@ const LeadDetailPage = () => {
                                                 ))}
                                             </div>
                                         )}
-                                    </section>
-                                </div>
-                            )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="lg:col-span-1 space-y-8">
