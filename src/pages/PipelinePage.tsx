@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KanbanBoard } from '../components/kanban/KanbanBoard';
 import { crmService } from '../services/crmService';
-import { Deal, DealStage } from '../types/crm';
+import { Deal, FlowState } from '../types/crm';
 import { Loader2 } from 'lucide-react';
 import { StageTransitionModal } from '../components/kanban/StageTransitionModal';
 import { ToastContainer, useToast } from '../components/common/Toast';
@@ -17,7 +17,7 @@ const PipelinePage = () => {
     const { emitNotification } = useNotify();
     const { recordActivity } = useActivity();
     const [deals, setDeals] = useState<Deal[]>([]);
-    const [stages, setStages] = useState<{ id: string; name: DealStage }[]>([]);
+    const [stages, setStages] = useState<FlowState[]>([]);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isFiltering, setIsFiltering] = useState(false);
     const [filters, setFilters] = useState<Filters>({});
@@ -26,12 +26,12 @@ const PipelinePage = () => {
     const [transitionModal, setTransitionModal] = useState<{
         isOpen: boolean;
         deal: Deal | null;
-        newStage: DealStage;
+        newStage: string;
         newStageId: string | null;
     }>({
         isOpen: false,
         deal: null,
-        newStage: 'Lead',
+        newStage: '',
         newStageId: null
     });
 
@@ -64,7 +64,9 @@ const PipelinePage = () => {
 
             setStages(fetchedStages.map(s => ({
                 id: s.id,
-                name: s.name as DealStage
+                name: s.name,
+                color: s.color || '#94A3B8',
+                is_terminal: s.is_terminal ?? false,
             })));
 
             setDeals(fetchedStages.flatMap(s => s.deals || []));
@@ -102,7 +104,7 @@ const PipelinePage = () => {
             if (isWon || isLost) {
                 emitNotification({ event, userIds: deal.owner_id ? [deal.owner_id] : [], variables: { dealName: deal.name, stageName: newStage }, relatedResource: { type: 'deal', id: deal.id } }).catch(() => {});
             }
-            setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, stage: newStage, stage_id: newStageId } : d));
+            setDeals(prev => prev.map(d => d.id === deal.id ? { ...d, current_flow_state: newStageId ?? undefined } : d));
         } catch (error) {
             showError('Failed to update stage');
         }

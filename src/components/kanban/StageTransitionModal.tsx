@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
-import { Deal, DealStage } from '../../types/crm';
+import { Deal } from '../../types/crm';
 import { AlertCircle } from 'lucide-react';
 
 interface StageTransitionModalProps {
@@ -8,7 +8,7 @@ interface StageTransitionModalProps {
     onClose: () => void;
     onConfirm: (reason: string) => void;
     deal: Deal | null;
-    newStage: DealStage;
+    newStage: string;
 }
 
 export const StageTransitionModal = ({ isOpen, onClose, onConfirm, deal, newStage }: StageTransitionModalProps) => {
