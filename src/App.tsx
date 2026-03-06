@@ -102,8 +102,8 @@ const App = () => {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="leads" element={<LeadsPage />} />
                     <Route path="leads/:id" element={<LeadDetailPage />} />
-                    <Route path="customers" element={<ModuleGuard moduleId="dailystore"><CustomersPage /></ModuleGuard>} />
-                    <Route path="customers/:id" element={<ModuleGuard moduleId="dailystore"><LeadDetailPage /></ModuleGuard>} />
+                    <Route path="customers" element={<CustomersPage />} />
+                    <Route path="customers/:id" element={<LeadDetailPage />} />
                     <Route path="pipeline" element={<PipelinePage />} />
                     <Route path="deal/:id" element={<DealDetailPage />} />
                     <Route path="tasks" element={<TasksPage />} />
