@@ -28,7 +28,7 @@ jobs:
       run: |
         ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
         ssh root@$SERVER_IP "mkdir -p $BUILD_DIR"
-        rsync -avz --delete --exclude 'node_modules' --exclude 'dist' --exclude '.git' ./ root@$SERVER_IP:$BUILD_DIR/
+        rsync -avz --delete --exclude 'node_modules' --exclude 'dist' --exclude '.git' ./ "root@$SERVER_IP:$BUILD_DIR/"
         ssh root@$SERVER_IP "bash -s" << 'DEPLOY_SCRIPT'
           set -e
           cd "${BUILD_DIR}"
@@ -53,7 +53,7 @@ jobs:
       run: |
         ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
         ssh root@$SERVER_IP "mkdir -p $BUILD_DIR"
-        rsync -avz --delete --exclude 'node_modules' --exclude 'dist' --exclude '.git' ./ root@$SERVER_IP:$BUILD_DIR/
+        rsync -avz --delete --exclude 'node_modules' --exclude 'dist' --exclude '.git' ./ "root@$SERVER_IP:$BUILD_DIR/"
         ssh root@$SERVER_IP "bash -s" << 'DEPLOY_SCRIPT'
           set -e
           cd "${BUILD_DIR}"
