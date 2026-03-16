@@ -39,7 +39,7 @@ jobs:
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           nvm use 22
-          npm install
+          npm install --legacy-peer-deps
           export VITE_BASE_URL=https://dev.crm.skyoffice360.com/
           npm run build
           mkdir -p "${NGINX_ROOT}"
@@ -64,7 +64,7 @@ jobs:
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           nvm use 22
-          npm install
+          npm install --legacy-peer-deps
           export VITE_BASE_URL=https://staging.crm.skyoffice360.com/
           npm run build
           mkdir -p "${NGINX_ROOT}"
