@@ -22,7 +22,11 @@ jobs:
       with:
         repository: praveen-vr-moonhive/so360-shell-fe
         token: ${{ secrets.PAT_TOKEN }}
-        path: ../../so360-shell-fe
+        path: _shell-fe
+
+    - name: Symlink shell-fe to expected location
+      run: |
+        ln -sfn "$GITHUB_WORKSPACE/_shell-fe" "$(dirname $(dirname $GITHUB_WORKSPACE))/so360-shell-fe"
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
@@ -30,11 +34,11 @@ jobs:
         node-version: ${{ matrix.node-version }}
 
     - name: Build Shell packages
-      working-directory: ../../so360-shell-fe
+      working-directory: _shell-fe
       run: |
         for pkg in packages/shell-context packages/design-system packages/event-bus packages/formatters; do
           if [ -d "$pkg" ]; then
-            cd "$pkg" && npm install --legacy-peer-deps && npm run build && cd ../..
+            (cd "$pkg" && npm install --legacy-peer-deps && npm run build)
           fi
         done
 
