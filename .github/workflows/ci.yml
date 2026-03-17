@@ -38,12 +38,18 @@ jobs:
           fi
         done
 
-    - name: Rewrite file-dep paths for CI
-      run: |
-        sed -i 's|file:../../so360-shell-fe/packages/|file:./_shell-fe/packages/|g' package.json
-
     - name: Install dependencies
       run: rm -f package-lock.json && npm install --legacy-peer-deps
+
+    - name: Link Shell packages to node_modules
+      run: |
+        mkdir -p node_modules/@so360
+        for pkg in shell-context design-system event-bus formatters; do
+          if [ -d "_shell-fe/packages/$pkg" ]; then
+            rm -rf "node_modules/@so360/$pkg"
+            cp -r "_shell-fe/packages/$pkg" "node_modules/@so360/$pkg"
+          fi
+        done
 
     - name: Build
       run: npm run build
