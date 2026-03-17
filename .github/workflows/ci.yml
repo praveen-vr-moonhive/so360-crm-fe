@@ -22,6 +22,7 @@ jobs:
       with:
         repository: praveen-vr-moonhive/so360-shell-fe
         token: ${{ secrets.PAT_TOKEN }}
+        ref: develop
         path: _shell-fe
 
     - name: Use Node.js ${{ matrix.node-version }}
