@@ -49,6 +49,7 @@ jobs:
           done
           npm install --legacy-peer-deps
           export VITE_BASE_URL=https://dev.crm.skyoffice360.com/
+          export VITE_SO360_CRM_API=https://dev.api.skyoffice360.com/crm
           npm run build
           mkdir -p "${NGINX_ROOT}"
           cp -r dist/* "${NGINX_ROOT}/"
@@ -82,6 +83,7 @@ jobs:
           done
           npm install --legacy-peer-deps
           export VITE_BASE_URL=https://staging.crm.skyoffice360.com/
+          export VITE_SO360_CRM_API=https://staging.api.skyoffice360.com/crm
           npm run build
           mkdir -p "${NGINX_ROOT}"
           cp -r dist/* "${NGINX_ROOT}/"
