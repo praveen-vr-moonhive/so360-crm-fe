@@ -4,7 +4,7 @@ import federation from '@originjs/vite-plugin-federation';
 import path from 'path';
 
 export default defineConfig({
-    base: 'http://localhost:3004/',
+    base: process.env.VITE_BASE_URL || 'http://localhost:3004/',
     resolve: {
         alias: {
             '@so360/shell-context': path.resolve(__dirname, '../../so360-shell-fe/packages/shell-context/dist/index.js'),
