@@ -1,10 +1,12 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import federation from '@originjs/vite-plugin-federation';
 import path from 'path';
 
-export default defineConfig({
-    base: process.env.VITE_BASE_URL || 'http://localhost:3004/',
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    base: env.VITE_BASE_URL || process.env.VITE_BASE_URL || 'http://localhost:3004/',
     resolve: {
         alias: {
             '@so360/shell-context': path.resolve(__dirname, '../../so360-shell-fe/packages/shell-context/dist/index.js'),
@@ -84,4 +86,4 @@ export default defineConfig({
             },
         },
     },
-});
+}; });
