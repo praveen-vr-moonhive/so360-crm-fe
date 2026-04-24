@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
         target: 'esnext',
         minify: false,
         cssCodeSplit: false,
+        emptyOutDir: false,
     },
     server: {
         port: 3004,

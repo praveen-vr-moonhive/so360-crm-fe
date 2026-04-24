@@ -1,116 +1,105 @@
-# SO360 CRM - Customer Relationship Management Module
+# SO360 CRM Frontend
 
-A standalone Micro Frontend (MFE) for the SO360 platform, built with React, Vite, and Module Federation.
+React MFE for the CRM module. Provides the full B2B sales UI — pipeline kanban, lead management, quote builder, marketing automation, and customer activity tracking.
 
-## 🏗️ Architecture
+## Module Federation Details
 
-This is a **remote application** in the Module Federation architecture:
-- **Name**: `crm_app`
-- **Port**: `3004`
-- **Exposes**: `./App` component
-- **Consumes**: Shared context from `@so360/shell-context`
+| | |
+|-|-|
+| Federation Name | `crm_app` |
+| Remote Entry | `http://localhost:3004/assets/remoteEntry.js` |
+| Exposed Module | `./App` → `./src/App.tsx` |
+| Port | 3004 |
+| Shell Route | `/crm/*` |
+| Shell Wrapper | `RemoteCRM.tsx` in `so360-shell-fe` |
 
-## 📦 Prerequisites
+## Tech Stack
 
-- Node.js >= 14
-- npm >= 6
-- Access to `so360-shell-fe` repository (for shared packages)
+| | |
+|-|-|
+| Framework | React 19.2 |
+| Build Tool | Vite 5.4 |
+| Language | TypeScript |
+| Styling | Tailwind CSS 3.4 |
+| Federation | @originjs/vite-plugin-federation 1.4 |
+| Icons | Lucide React |
+| Runtime | Node.js 22.12+ |
 
-## 🚀 Getting Started
+## Shared Singletons (via federation)
+- `react`, `react-dom`, `react-router-dom`
+- `framer-motion`, `lucide-react`
+- `@so360/shell-context`, `@so360/design-system`, `@so360/event-bus`, `@so360/formatters`
 
-### 1. Install Dependencies
+## Pages & Routes
 
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/crm` | `DashboardPage` | KPI overview |
+| `/crm/pipeline` | `PipelinePage` | Kanban deal board (60s auto-poll) |
+| `/crm/deals/:id` | `DealDetailPage` | Deal info, timeline, project link, invoice status |
+| `/crm/leads` | `LeadsPage` | Lead list with qualification and conversion |
+| `/crm/leads/:id` | `LeadDetailPage` | Lead detail with storefront activity |
+| `/crm/customers` | `CustomersPage` | Customer list with credit limit management |
+| `/crm/quotes` | `QuotesPage` | Quote list with approval workflow |
+| `/crm/quotes/:id` | `QuoteDetailPage` | Quote builder with stock availability |
+| `/crm/tasks` | `TasksPage` | Task list with bulk update |
+| `/crm/tasks/:id` | `TaskDetailPage` | Task detail and notes |
+| `/crm/marketing` | `MarketingOverviewPage` | Marketing KPIs |
+| `/crm/marketing/campaigns` | `MarketingCampaignsPage` | Campaign management |
+| `/crm/marketing/campaigns/:id` | `MarketingCampaignDetailPage` | Campaign detail |
+| `/crm/marketing/abandoned-carts` | `MarketingAbandonedCartsPage` | Cart recovery |
+| `/crm/marketing/abandoned-carts/:id` | `MarketingAbandonedCartDetailPage` | Cart detail |
+| `/crm/marketing/coupons` | `MarketingCouponsPage` | Coupon management |
+| `/crm/marketing/newsletter` | `MarketingNewsletterPage` | Newsletter subscribers |
+| `/crm/marketing/reviews` | `MarketingReviewsPage` | Review moderation |
+| `/crm/marketing/segments` | `MarketingSegmentsPage` | Customer segments |
+| `/crm/marketing/wishlists` | `MarketingWishlistPage` | Wishlist tracking |
+| `/crm/settings` | `SettingsPage` | CRM configuration |
+
+## How to Run
+
+### Prerequisites
+- Node.js 22.12+
+- Shared packages built
+
+### Build Shared Packages First
+```bash
+cd ../../so360-shell-fe/packages/shell-context && npm run build
+cd ../design-system && npm run build
+cd ../event-bus && npm run build
+```
+
+### MFE Preview Mode (Shell integration)
 ```bash
 npm install
+npm run build && npm run preview    # port 3004
+# Shell loads from http://localhost:3004/assets/remoteEntry.js
 ```
 
-### 2. Link Shared Packages
-
-The CRM app depends on shared packages from the Shell repository. Make sure the Shell repo is set up:
-
+### Standalone Dev Mode
 ```bash
-# In the shell-fe repo
-cd ../so360-shell-fe/packages/shell-context
-npm run build
-
-cd ../design-system
-npm run build
-
-cd ../event-bus
-npm run build
+npm run dev    # port 3004, no remoteEntry.js produced
 ```
 
-### 3. Development
+> **Critical**: Use `build && preview` for Shell integration. `npm run dev` does NOT produce `remoteEntry.js`.
 
-Start the dev server:
-
-```bash
-npm run dev
+## Environment Variables
+```env
+VITE_BASE_URL=http://localhost:3004/
+VITE_SO360_CRM_API=http://localhost:3003
+VITE_SO360_CORE_API=http://localhost:3000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-The app will run on `http://localhost:3004`
+## API Proxying
+In preview mode, Vite proxies:
+- `/crm-api/*` → CRM BE (3003)
+- `/v1/*` → Core BE (3000)
 
-### 4. Production Build
+## Cross-Module Integrations
 
-```bash
-npm run build
-```
-
-Outputs to `dist/` directory with `remoteEntry.js` for Module Federation.
-
-## 🔗 Integration with Shell
-
-The Shell application loads this MFE via Module Federation:
-
-```typescript
-// Shell's vite.config.ts
-remotes: {
-  crm_app: 'http://localhost:3004/assets/remoteEntry.js',
-}
-```
-
-## 📁 Project Structure
-
-```
-so360-crm/
-├── src/
-│   ├── App.tsx           # Main application component (exposed to Shell)
-│   └── main.tsx          # Standalone dev entry point
-├── vite.config.ts        # Vite + Module Federation config
-├── package.json
-└── README.md
-```
-
-## 🎨 Shared Dependencies
-
-This MFE uses the following shared packages:
-
-- `@so360/shell-context` - Context hooks (`useIdentity`, `useTenant`, etc.)
-- `@so360/design-system` - Shared UI components
-- `@so360/event-bus` - Cross-module communication
-
-## 🧪 Development Tips
-
-### Standalone Mode
-Run `npm run dev` to develop the MFE independently without the Shell.
-
-### Integration Mode
-1. Start the Shell: `cd ../so360-shell-fe && npm run dev`
-2. Start CRM: `npm run dev`
-3. Navigate to `http://localhost:3002/crm` in the Shell
-
-## 📝 Version Compatibility
-
-| CRM Version | Min Shell Version | Max Shell Version |
-|-------------|-------------------|-------------------|
-| 1.0.0       | 1.0.0             | 2.0.0             |
-
-## 🔒 Security
-
-- All authentication is handled by the Shell
-- Backend authorization is the source of truth
-- UI permissions are advisory only
-
-## 📄 License
-
-UNLICENSED - Private
+### Uses
+- `PeopleSelector` from `@so360/design-system` — Sales rep assignment on deals
+- `UserSelector` — Task assignment
+- Storefront activity data from Daily Store (via CRM BE proxy)
