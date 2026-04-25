@@ -954,15 +954,12 @@ export const crmService = {
     },
 
     createLead: async (lead: Omit<Lead, 'id' | 'created_at' | 'owner'>): Promise<Lead> => {
-        const status = (lead.status && STATUS_MAP_FE_TO_BE[lead.status])
-            ? STATUS_MAP_FE_TO_BE[lead.status]
-            : (lead.status || 'NEW');
         return leadsApi.create({
             company_name: lead.company_name,
             contact_name: lead.contact_name,
             email: lead.contact_email,
             phone: lead.phone,
-            status: status,
+            status: lead.status || 'New',
             source: lead.source,
             owner_id: USER_ID,
             meta_data: lead.custom_fields,
