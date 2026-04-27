@@ -288,6 +288,31 @@ class ApiClient {
             ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
         });
     }
+
+    // Multipart upload — does NOT go through request() because that always
+    // sets Content-Type: application/json. fetch() must set the multipart
+    // boundary itself, so we send no Content-Type header here.
+    async uploadFile(endpoint: string, file: File): Promise<{ url: string; media_id?: string }> {
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers: HeadersInit = {
+            'X-Tenant-Id': this.tenantId,
+            ...(this.orgId ? { 'X-Org-Id': this.orgId } : {}),
+            ...(this.userId ? { 'X-User-Id': this.userId } : {}),
+            ...(this.accessToken ? { 'Authorization': `Bearer ${this.accessToken}` } : {}),
+        };
+        const res = await fetch(`${this.baseURL}${endpoint}`, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+        if (!res.ok) {
+            let msg = `Upload failed: ${res.status}`;
+            try { const j = await res.json(); if (j?.message) msg = Array.isArray(j.message) ? j.message.join(', ') : j.message; } catch { /* ignore */ }
+            throw new Error(msg);
+        }
+        return res.json();
+    }
 }
 
 const apiClient = new ApiClient(API_BASE_URL, TENANT_ID);
@@ -1328,14 +1353,17 @@ export const crmService = {
         return documentsApi.getAllByDeal(dealId);
     },
     uploadDocument: async (entity: string | { leadId?: string, dealId?: string }, file: File): Promise<Attachment> => {
-        // Mock upload -> In real app, upload to storage first, get URL
-        const mockUrl = URL.createObjectURL(file);
+        // Push the file to Core BE's DigitalOcean Spaces pipe, then store the
+        // returned CDN URL in the documents table. Previously this used
+        // URL.createObjectURL() which creates an in-memory blob URL that
+        // dies on page reload — attachments looked uploaded but vanished.
+        const { url } = await coreClient.uploadFile('/v1/media/upload', file);
         const entityObj = typeof entity === 'string' ? { leadId: entity } : entity;
         return documentsApi.create({
             name: file.name,
             size: file.size,
             type: file.type,
-            url: mockUrl,
+            url,
             lead_id: entityObj.leadId,
             deal_id: entityObj.dealId,
             uploaded_by_id: USER_ID,
