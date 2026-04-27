@@ -18,7 +18,9 @@ jobs:
     - name: Checkout this repo
       uses: actions/checkout@v4
       with:
-        path: this-repo
+        # 2-level nest so vite.config.ts alias `../../so360-shell-fe` resolves
+        # to the sibling shell-fe checkout at workspace root.
+        path: so360-crm/this-repo
 
     - name: Checkout shell-fe (for shared packages)
       uses: actions/checkout@v4
@@ -52,7 +54,7 @@ jobs:
         (cd packages/formatters    && npm install --no-audit --no-fund && npm run build)
 
     - name: Build artefact on runner
-      working-directory: this-repo
+      working-directory: so360-crm/this-repo
       env:
         CI: 'true'
         NPM_CONFIG_PROGRESS: 'false'
@@ -105,7 +107,7 @@ jobs:
         SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
         ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
         ssh $SSH_OPTS root@$SERVER_IP "mkdir -p '$NGINX_ROOT' && rm -rf '$NGINX_ROOT'/*"
-        rsync -avz --delete -e "ssh $SSH_OPTS" this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
+        rsync -avz --delete -e "ssh $SSH_OPTS" so360-crm/this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
         echo "Deployed to https://dev.crm.skyoffice360.com"
 
     - name: Deploy dist to Staging
@@ -117,7 +119,7 @@ jobs:
         SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
         ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
         ssh $SSH_OPTS root@$SERVER_IP "mkdir -p '$NGINX_ROOT' && rm -rf '$NGINX_ROOT'/*"
-        rsync -avz --delete -e "ssh $SSH_OPTS" this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
+        rsync -avz --delete -e "ssh $SSH_OPTS" so360-crm/this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
         echo "Deployed to https://staging.crm.skyoffice360.com"
 
     - name: Deploy dist to Production
@@ -129,7 +131,7 @@ jobs:
         SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
         ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
         ssh $SSH_OPTS root@$SERVER_IP "mkdir -p '$NGINX_ROOT' && rm -rf '$NGINX_ROOT'/*"
-        rsync -avz --delete -e "ssh $SSH_OPTS" this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
+        rsync -avz --delete -e "ssh $SSH_OPTS" so360-crm/this-repo/dist/ "root@$SERVER_IP:$NGINX_ROOT/"
         echo "Deployed to https://cdn.neonbee.app/crm/"
 
     - name: Purge Cloudflare cache for /crm/
