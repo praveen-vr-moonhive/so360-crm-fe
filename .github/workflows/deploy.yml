@@ -44,55 +44,50 @@ jobs:
           export VITE_BASE_URL=https://dev.crm.skyoffice360.com/
           export VITE_SO360_CORE_API=https://dev.api.skyoffice360.com/core
           export VITE_SO360_CRM_API=https://dev.api.skyoffice360.com/crm
-          export VITE_SO360_INVENTORY_API=https://dev.api.skyoffice360.com/inventory
-          export VITE_SO360_DAILYSTORE_API=https://dev.api.skyoffice360.com/dailystore
-          export VITE_SO360_FULFILLMENT_API=https://dev.api.skyoffice360.com/fulfillment
           npm run build
           mkdir -p "${NGINX_ROOT}"
           cp -r dist/* "${NGINX_ROOT}/"
-          # ── Always enforce NGINX CORS config (never let it drift) ──
-          cat > "/etc/nginx/sites-available/${DOMAIN}" << NGINX_BLOCK
-server {
-    listen 80;
-    server_name ${DOMAIN};
-    root ${NGINX_ROOT};
-    index index.html;
-
-    access_log /var/log/nginx/${DOMAIN}-access.log;
-    error_log /var/log/nginx/${DOMAIN}-error.log;
-
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 256;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/vnd.ms-fontobject application/x-font-ttf font/opentype image/svg+xml image/x-icon;
-
-    location ~* /assets/remoteEntry\.js$ {
-        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
-        add_header Pragma "no-cache" always;
-        add_header Expires "0" always;
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range" always;
-        try_files \$uri =404;
-    }
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf|map)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable" always;
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-        try_files \$uri =404;
-    }
-
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-}
-NGINX_BLOCK
+          {
+            echo "server {"
+            echo "    listen 80;"
+            echo "    server_name ${DOMAIN};"
+            echo "    root ${NGINX_ROOT};"
+            echo "    index index.html;"
+            echo ""
+            echo "    access_log /var/log/nginx/${DOMAIN}-access.log;"
+            echo "    error_log /var/log/nginx/${DOMAIN}-error.log;"
+            echo ""
+            echo "    gzip on;"
+            echo "    gzip_vary on;"
+            echo "    gzip_min_length 256;"
+            echo "    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/vnd.ms-fontobject application/x-font-ttf font/opentype image/svg+xml image/x-icon;"
+            echo ""
+            echo "    location ~* /assets/remoteEntry\\.js\$ {"
+            echo "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+            echo "        add_header Pragma \"no-cache\" always;"
+            echo "        add_header Expires \"0\" always;"
+            echo "        add_header Access-Control-Allow-Origin \"*\" always;"
+            echo "        add_header Access-Control-Allow-Methods \"GET, OPTIONS\" always;"
+            echo "        add_header Access-Control-Allow-Headers \"DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range\" always;"
+            echo "        try_files \$uri =404;"
+            echo "    }"
+            echo ""
+            echo "    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf|map)\$ {"
+            echo "        expires 1y;"
+            echo "        add_header Cache-Control \"public, immutable\" always;"
+            echo "        add_header Access-Control-Allow-Origin \"*\" always;"
+            echo "        add_header Access-Control-Allow-Methods \"GET, OPTIONS\" always;"
+            echo "        try_files \$uri =404;"
+            echo "    }"
+            echo ""
+            echo "    location / {"
+            echo "        try_files \$uri \$uri/ /index.html;"
+            echo "    }"
+            echo "}"
+          } > "/etc/nginx/sites-available/${DOMAIN}"
           ln -sfn "/etc/nginx/sites-available/${DOMAIN}" "/etc/nginx/sites-enabled/${DOMAIN}"
           nginx -t && systemctl reload nginx
-          echo "✅ NGINX CORS config enforced for ${DOMAIN}"
-          echo "✅ Deployed to https://${DOMAIN}"
+          echo "Deployed to https://${DOMAIN}"
         DEPLOY_SCRIPT
 
     - name: Deploy to Staging
@@ -117,69 +112,64 @@ NGINX_BLOCK
           export VITE_BASE_URL=https://staging.crm.skyoffice360.com/
           export VITE_SO360_CORE_API=https://staging.api.skyoffice360.com/core
           export VITE_SO360_CRM_API=https://staging.api.skyoffice360.com/crm
-          export VITE_SO360_INVENTORY_API=https://staging.api.skyoffice360.com/inventory
-          export VITE_SO360_DAILYSTORE_API=https://staging.api.skyoffice360.com/dailystore
-          export VITE_SO360_FULFILLMENT_API=https://staging.api.skyoffice360.com/fulfillment
           npm run build
           mkdir -p "${NGINX_ROOT}"
           cp -r dist/* "${NGINX_ROOT}/"
-          # ── Always enforce NGINX CORS config (never let it drift) ──
-          cat > "/etc/nginx/sites-available/${DOMAIN}" << NGINX_BLOCK
-server {
-    listen 80;
-    server_name ${DOMAIN};
-    root ${NGINX_ROOT};
-    index index.html;
-
-    access_log /var/log/nginx/${DOMAIN}-access.log;
-    error_log /var/log/nginx/${DOMAIN}-error.log;
-
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 256;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/vnd.ms-fontobject application/x-font-ttf font/opentype image/svg+xml image/x-icon;
-
-    location ~* /assets/remoteEntry\.js$ {
-        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
-        add_header Pragma "no-cache" always;
-        add_header Expires "0" always;
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range" always;
-        try_files \$uri =404;
-    }
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf|map)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable" always;
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
-        try_files \$uri =404;
-    }
-
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-}
-NGINX_BLOCK
+          {
+            echo "server {"
+            echo "    listen 80;"
+            echo "    server_name ${DOMAIN};"
+            echo "    root ${NGINX_ROOT};"
+            echo "    index index.html;"
+            echo ""
+            echo "    access_log /var/log/nginx/${DOMAIN}-access.log;"
+            echo "    error_log /var/log/nginx/${DOMAIN}-error.log;"
+            echo ""
+            echo "    gzip on;"
+            echo "    gzip_vary on;"
+            echo "    gzip_min_length 256;"
+            echo "    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/vnd.ms-fontobject application/x-font-ttf font/opentype image/svg+xml image/x-icon;"
+            echo ""
+            echo "    location ~* /assets/remoteEntry\\.js\$ {"
+            echo "        add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;"
+            echo "        add_header Pragma \"no-cache\" always;"
+            echo "        add_header Expires \"0\" always;"
+            echo "        add_header Access-Control-Allow-Origin \"*\" always;"
+            echo "        add_header Access-Control-Allow-Methods \"GET, OPTIONS\" always;"
+            echo "        add_header Access-Control-Allow-Headers \"DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range\" always;"
+            echo "        try_files \$uri =404;"
+            echo "    }"
+            echo ""
+            echo "    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf|map)\$ {"
+            echo "        expires 1y;"
+            echo "        add_header Cache-Control \"public, immutable\" always;"
+            echo "        add_header Access-Control-Allow-Origin \"*\" always;"
+            echo "        add_header Access-Control-Allow-Methods \"GET, OPTIONS\" always;"
+            echo "        try_files \$uri =404;"
+            echo "    }"
+            echo ""
+            echo "    location / {"
+            echo "        try_files \$uri \$uri/ /index.html;"
+            echo "    }"
+            echo "}"
+          } > "/etc/nginx/sites-available/${DOMAIN}"
           ln -sfn "/etc/nginx/sites-available/${DOMAIN}" "/etc/nginx/sites-enabled/${DOMAIN}"
           nginx -t && systemctl reload nginx
-          echo "✅ NGINX CORS config enforced for ${DOMAIN}"
-          echo "✅ Deployed to https://${DOMAIN}"
+          echo "Deployed to https://${DOMAIN}"
         DEPLOY_SCRIPT
 
-    - name: Purge Cloudflare Cache
+    - name: Deployment Summary
       if: always()
-      env:
-        CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-        CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID_SKYOFFICE360 }}
       run: |
-        if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
-          echo "⚠️  CF credentials not set — skipping cache purge"
-          exit 0
+        echo ""
+        echo "========================================="
+        if [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+          echo "Environment: Development"
+          echo "Service: crm-fe"
+          echo "URL: https://dev.crm.skyoffice360.com"
+        elif [ "${{ github.ref }}" == "refs/heads/qa" ]; then
+          echo "Environment: Staging"
+          echo "Service: crm-fe"
+          echo "URL: https://staging.crm.skyoffice360.com"
         fi
-        RESULT=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-          -H "Authorization: Bearer ${CF_API_TOKEN}" \
-          -H "Content-Type: application/json" \
-          --data '{"purge_everything":true}')
-        echo "✅ Cloudflare cache purged"
+        echo "========================================="
