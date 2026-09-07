@@ -605,13 +605,13 @@ const QuoteDetailPage = () => {
 
             {/* Approval in Progress Banner */}
             {quote.status === 'pending_approval' && (
-                <div className="mb-6 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 space-y-3">
+                <div className="mb-6 p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2.5">
                             <Clock className="w-5 h-5 text-amber-400" />
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-amber-100 text-base">
+                                    <span className="font-semibold text-slate-100 text-base">
                                         Approval in Progress
                                     </span>
                                     <span className="text-xs px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold border border-amber-400/30">
@@ -621,7 +621,7 @@ const QuoteDetailPage = () => {
                             </div>
                         </div>
                     </div>
-                    <p className="text-sm text-amber-200/90 leading-relaxed">
+                    <p className="text-sm text-slate-400 leading-relaxed">
                         This quote is currently undergoing approval review. Material details and line items cannot be modified until a decision is reached or the request is withdrawn.
                         {isSubmitter && !isAuthorizedApprover && (
                             <span className="block mt-1 text-xs text-amber-300 font-medium">
@@ -636,7 +636,7 @@ const QuoteDetailPage = () => {
                     </p>
                     {currentApprovalRequest?.approvers && currentApprovalRequest.approvers.length > 0 && (
                         <div className="pt-3 border-t border-amber-500/20 flex flex-wrap gap-2 items-center">
-                            <span className="text-xs font-semibold text-amber-300/80">Required Approvers:</span>
+                            <span className="text-xs font-semibold text-slate-400">Required Approvers:</span>
                             {currentApprovalRequest.approvers.map((a: any, idx: number) => (
                                 <span
                                     key={a.id || idx}
@@ -648,7 +648,7 @@ const QuoteDetailPage = () => {
                                             : 'bg-slate-800/90 border-slate-700 text-slate-300'
                                     }`}
                                 >
-                                    <span className="font-medium">{a.approver_name || a.approver_email || 'Approver'}</span>
+                                    <span className="font-medium text-slate-200">{a.approver_name || a.approver_email || 'Approver'}</span>
                                     <span className="text-[10px] uppercase font-bold opacity-80">({a.status})</span>
                                 </span>
                             ))}
