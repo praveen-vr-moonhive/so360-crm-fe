@@ -174,6 +174,13 @@ export interface Task {
     assigned_to: User;
     created_at: string;
     reminder_minutes_before?: number;
+    // Project sync — populated once the connect-project migration lands on the
+    // backend. Absent/undefined on a task means "no project connection", which
+    // is the current unaffected behavior — every consumer must treat it that way.
+    project_id?: string;
+    project_task_id?: string;
+    sync_status?: 'connected' | 'syncing' | 'sync_failed' | 'disconnected' | null;
+    last_synced_at?: string;
 }
 
 export interface LeadScoringRule {

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     CheckCircle2, Circle, Calendar,
-    User as UserIcon, Briefcase, Clock, AlertCircle, Trash2, Edit2
+    User as UserIcon, Briefcase, Clock, AlertCircle, Trash2, Edit2,
+    Link2, Unlink, RefreshCw
 } from 'lucide-react';
 import { crmService } from '../services/crmService';
 import { Task } from '../types/crm';
@@ -11,7 +12,7 @@ import { Loader2 } from 'lucide-react';
 import TaskModal from './components/TaskModal';
 import { RescheduleModal } from './components/RescheduleModal';
 import { ShellContext, useActivity, useShellBridge } from '@so360/shell-context';
-import { toast, getErrorMessage } from '@so360/design-system';
+import { toast, getErrorMessage, CrossLinkChip } from '@so360/design-system';
 import DetailBackLink from '../components/common/DetailBackLink';
 import { useCRMFormatters } from '../utils/formatters';
 import { isTaskLocked, canRescheduleTask, canEditTask, isTaskOverdue, TASK_LOCKED_HINT } from '../utils/taskUtils';
@@ -38,6 +39,10 @@ const TaskDetailPage = () => {
     const [isRetryingNotes, setIsRetryingNotes] = useState(false);
     const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
     const [editingNote, setEditingNote] = useState<{ id: string; content: string } | null>(null);
+    const [isRetryingSync, setIsRetryingSync] = useState(false);
+    const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+    const [disconnectMode, setDisconnectMode] = useState<'remove_project_task' | 'keep_but_disconnect'>('keep_but_disconnect');
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
 
     const refreshNotes = async (taskId: string) => {
         try {
@@ -140,6 +145,37 @@ const TaskDetailPage = () => {
             navigate('/crm/tasks');
         } catch (error) {
             console.error('Failed to delete task:', error);
+        }
+    };
+
+    const handleRetrySync = async () => {
+        if (!task) return;
+        setIsRetryingSync(true);
+        try {
+            const updated = await crmService.retryTaskProjectSync(task.id);
+            setTask(updated || task);
+            toast.success('Project sync retried.');
+        } catch (error) {
+            console.error('Failed to retry project sync:', error);
+            toast.error(getErrorMessage(error, 'Failed to retry sync. Please try again.'));
+        } finally {
+            setIsRetryingSync(false);
+        }
+    };
+
+    const handleDisconnect = async () => {
+        if (!task) return;
+        setIsDisconnecting(true);
+        try {
+            const updated = await crmService.disconnectTaskFromProject(task.id, disconnectMode);
+            setTask(updated || { ...task, sync_status: 'disconnected' });
+            setShowDisconnectConfirm(false);
+            toast.success('Task disconnected from Project.');
+        } catch (error) {
+            console.error('Failed to disconnect task from project:', error);
+            toast.error(getErrorMessage(error, 'Failed to disconnect from Project. Please try again.'));
+        } finally {
+            setIsDisconnecting(false);
         }
     };
 
@@ -268,6 +304,62 @@ const TaskDetailPage = () => {
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Project connection status. `sync_status` is only present
+                                once the task has (or once had) a Project connection —
+                                absent/undefined means unaffected behavior, no UI at all. */}
+                            {task.sync_status === 'connected' && (
+                                <div className="flex items-center gap-4" data-testid="project-sync-connected">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+                                        <Link2 size={20} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Connected to Project</span>
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            {task.project_id && <CrossLinkChip type="projects.project" id={task.project_id} />}
+                                            {task.last_synced_at && (
+                                                <span className="text-xs text-slate-500">
+                                                    Last synced {formatters.formatDate(task.last_synced_at, { hour: 'numeric', minute: '2-digit' })}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setDisconnectMode('keep_but_disconnect'); setShowDisconnectConfirm(true); }}
+                                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all shrink-0"
+                                        aria-label="Disconnect from Project"
+                                        title="Disconnect from Project"
+                                    >
+                                        <Unlink size={16} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {task.sync_status === 'sync_failed' && (
+                                <div className="flex items-center gap-4" data-testid="project-sync-failed">
+                                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 shrink-0">
+                                        <AlertCircle size={20} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-[10px] font-bold text-rose-400 uppercase block mb-1">Sync Failed</span>
+                                        <span className="text-sm text-slate-400">This task couldn't be synchronized with its Project.</span>
+                                    </div>
+                                    <button
+                                        onClick={handleRetrySync}
+                                        disabled={isRetryingSync}
+                                        className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-blue-600/10 border border-blue-600/20 rounded-lg text-blue-400 hover:bg-blue-600/20 transition-colors disabled:opacity-50 shrink-0"
+                                    >
+                                        {isRetryingSync ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                        Retry Sync
+                                    </button>
+                                </div>
+                            )}
+
+                            {task.sync_status === 'disconnected' && (
+                                <p className="text-xs text-slate-600 italic" data-testid="project-sync-disconnected">
+                                    Previously connected to a Project.
+                                </p>
+                            )}
                         </div>
                     </section>
 
@@ -579,6 +671,71 @@ const TaskDetailPage = () => {
                                 className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-sm transition-all shadow-lg shadow-rose-500/20 active:scale-95"
                             >
                                 Delete Note
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Disconnect from Project Confirmation Modal */}
+            {showDisconnectConfirm && createPortal(
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[600]">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                                <Unlink className="text-rose-400" size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-50 mb-1">Disconnect from Project</h3>
+                                <p className="text-sm text-slate-400">
+                                    Choose what happens to the linked Project task.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="space-y-2 mb-4">
+                            <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="disconnect-mode"
+                                    checked={disconnectMode === 'keep_but_disconnect'}
+                                    onChange={() => setDisconnectMode('keep_but_disconnect')}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block text-sm font-bold text-slate-200">Keep Project task, just disconnect</span>
+                                    <span className="block text-xs text-slate-500">The Project task stays as-is; this CRM task stops syncing with it.</span>
+                                </span>
+                            </label>
+                            <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="disconnect-mode"
+                                    checked={disconnectMode === 'remove_project_task'}
+                                    onChange={() => setDisconnectMode('remove_project_task')}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block text-sm font-bold text-slate-200">Remove the Project task too</span>
+                                    <span className="block text-xs text-slate-500">Deletes the connected task on the Project side as well.</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowDisconnectConfirm(false)}
+                                disabled={isDisconnecting}
+                                className="px-4 py-2 bg-slate-700/60 hover:bg-slate-600/60 text-slate-200 rounded-lg font-bold text-sm transition-all border border-slate-600/50 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDisconnect}
+                                disabled={isDisconnecting}
+                                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-sm transition-all shadow-lg shadow-rose-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isDisconnecting && <Loader2 size={12} className="animate-spin" />}
+                                Disconnect
                             </button>
                         </div>
                     </div>

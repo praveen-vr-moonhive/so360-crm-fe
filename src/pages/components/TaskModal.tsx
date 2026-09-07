@@ -11,11 +11,16 @@ interface TaskModalProps {
     leadId?: string;
     dealId?: string;
     stakeholderId?: string;
+    // The connected Deal's linked Project, when known — used only to
+    // auto-suggest a Project on this task; the user may still change or
+    // clear it. Passed by callers that already have the Deal loaded (e.g.
+    // DealDetailPage); optional so callers without that context are unaffected.
+    dealProjectId?: string;
     onClose: () => void;
     onSuccess: (task: Task) => void;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholderId, onClose, onSuccess }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholderId, dealProjectId, onClose, onSuccess }) => {
     const shell = useShell();
     const { emitNotification } = useNotify();
     const { recordActivity } = useActivity();
@@ -47,6 +52,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholder
     const [associateId, setAssociateId] = useState('');
     const [leads, setLeads] = useState<Lead[]>([]);
     const [deals, setDeals] = useState<Deal[]>([]);
+    // Optional Project connection. Pre-selected from the task's existing
+    // connection when editing, or from the parent Deal's project when
+    // creating from a Deal context — either way the user can change/clear it.
+    const [projectId, setProjectId] = useState(task?.project_id || dealProjectId || '');
+    const [projects, setProjects] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -77,8 +87,20 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholder
             setLeads(leadsData);
             setDeals(dealsData);
         };
+        const fetchProjects = async () => {
+            // getProjects() already swallows its own network errors and
+            // resolves []; the extra try/catch guards call sites (older test
+            // doubles, etc.) that don't stub this method at all.
+            try {
+                const projectsData = await crmService.getProjects();
+                setProjects(projectsData || []);
+            } catch {
+                setProjects([]);
+            }
+        };
         fetchUsers();
         fetchAssociateOptions();
+        fetchProjects();
     }, []);
 
     const handleAssignToMe = () => {
@@ -147,6 +169,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholder
             } else {
                 result = await crmService.createTask(data);
             }
+
+            // Project connection is best-effort: the task itself is already
+            // saved by this point, so a connect failure must not roll that back
+            // or block the modal from closing — just tell the user quietly.
+            if (projectId && projectId !== task?.project_id && result?.id) {
+                try {
+                    await crmService.connectTaskToProject(result.id, projectId);
+                } catch (connectError) {
+                    const reason = (connectError as Error)?.message || 'Unknown error';
+                    toast.warning(`Task ${isEditing ? 'updated' : 'created'}, but couldn't connect to Project: ${reason}`);
+                }
+            }
+
             if (!isEditing && assignedToId && assignedToId !== currentUserId) {
                 emitNotification({ event: 'CRM_TASK_ASSIGNED', userIds: [assignedToId], variables: { taskTitle: title, actorName: currentUser?.full_name || 'Someone' }, relatedResource: { type: 'task', id: result?.id } }).catch(() => {});
             }
@@ -358,6 +393,31 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, leadId, dealId, stakeholder
                                     <span className="text-[10px] font-black uppercase tracking-widest">Me</span>
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <Link2 size={12} />
+                                Project <span className="text-slate-600 normal-case tracking-normal font-bold">(optional)</span>
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={projectId}
+                                    onChange={(e) => setProjectId(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700/50 text-slate-50 rounded-xl px-4 py-3 pr-9 outline-none focus:border-blue-500 transition-all font-bold appearance-none cursor-pointer"
+                                >
+                                    <option value="">No Project</option>
+                                    {projects.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name || p.title || p.id}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            </div>
+                            {projectId && (
+                                <p className="text-[11px] text-slate-500">
+                                    This task will be synchronized with the selected Project.
+                                </p>
+                            )}
                         </div>
 
                         {showAssociatePicker && (

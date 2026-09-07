@@ -81,6 +81,7 @@ export const Printer = createIcon('Printer');
 export const UserCheck = createIcon('UserCheck');
 export const BarChart2 = createIcon('BarChart2');
 export const Link2 = createIcon('Link2');
+export const Unlink = createIcon('Unlink');
 export const Eye = createIcon('Eye');
 export const MapPin = createIcon('MapPin');
 export const FileSignature = createIcon('FileSignature');

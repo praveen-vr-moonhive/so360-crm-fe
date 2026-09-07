@@ -1394,6 +1394,7 @@ const DealDetailPage = () => {
                 <TaskModal
                     task={editingTask}
                     dealId={id}
+                    dealProjectId={deal?.project_id}
                     onClose={() => { setIsCreatingTask(false); setEditingTask(null); }}
                     onSuccess={() => { fetchData(); toast.success('Timeline updated'); }}
                 />

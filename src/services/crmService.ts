@@ -1917,6 +1917,32 @@ export const crmService = {
         return tasksApi.delete(id);
     },
 
+    /**
+     * Connect a CRM task to a Project task. Success responses include the
+     * updated task fields (incl. `sync_status: 'connected'`); a non-2xx or a
+     * `{ connected: false, reason }`-shaped body both count as failure. The
+     * backend's exact failure shape isn't finalized, so both are handled here
+     * rather than pushed onto every caller.
+     */
+    async connectTaskToProject(taskId: string, projectId: string): Promise<Task & { connected?: boolean; reason?: string }> {
+        const result = await apiClient.post<Task & { connected?: boolean; reason?: string }>(
+            `/tasks/${taskId}/connect-project`,
+            { project_id: projectId },
+        );
+        if (result && (result as any).connected === false) {
+            throw new Error((result as any).reason || 'Failed to connect task to project.');
+        }
+        return result;
+    },
+
+    async disconnectTaskFromProject(taskId: string, mode: 'remove_project_task' | 'keep_but_disconnect'): Promise<Task> {
+        return apiClient.post<Task>(`/tasks/${taskId}/disconnect-project`, { mode });
+    },
+
+    async retryTaskProjectSync(taskId: string): Promise<Task> {
+        return apiClient.post<Task>(`/tasks/${taskId}/retry-sync`, {});
+    },
+
     // Settings
     getSettings: async (): Promise<CRMSettings> => {
       return orgStaticCache.run(`settings|${apiClient.getOrgId()}`, async () => {

@@ -13,6 +13,8 @@ const mockUpdateNote = vi.fn();
 const mockDeleteNote = vi.fn();
 const mockNavigate = vi.fn();
 const mockRecordActivity = vi.fn().mockResolvedValue(undefined);
+const mockRetryTaskProjectSync = vi.fn();
+const mockDisconnectTaskFromProject = vi.fn();
 
 vi.mock('../services/crmService', () => ({
   crmService: {
@@ -24,6 +26,8 @@ vi.mock('../services/crmService', () => ({
     createNote: (...a: any[]) => mockCreateNote(...a),
     updateNote: (...a: any[]) => mockUpdateNote(...a),
     deleteNote: (...a: any[]) => mockDeleteNote(...a),
+    retryTaskProjectSync: (...a: any[]) => mockRetryTaskProjectSync(...a),
+    disconnectTaskFromProject: (...a: any[]) => mockDisconnectTaskFromProject(...a),
   },
 }));
 
@@ -87,6 +91,8 @@ beforeEach(async () => {
   mockUpdateNote.mockResolvedValue({});
   mockDeleteNote.mockResolvedValue({});
   mockRecordActivity.mockResolvedValue(undefined);
+  mockRetryTaskProjectSync.mockResolvedValue(makeTask({ sync_status: 'connected' }));
+  mockDisconnectTaskFromProject.mockResolvedValue(makeTask({ sync_status: 'disconnected' }));
 });
 
 describe('TaskDetailPage', () => {
@@ -546,5 +552,108 @@ describe('TaskDetailPage', () => {
       await waitFor(() => expect(screen.getByText('Follow up with client')).toBeInTheDocument());
       expect(screen.queryByTestId('note-composer-trigger')).not.toBeInTheDocument();
     });
+  });
+});
+
+// ── Project connection status (optional) ────────────────────────────────────
+describe('Given a task with no sync_status', () => {
+  it('When TaskDetailPage renders / Then no connection UI is shown at all', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask());
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByText('Follow up with client')).toBeInTheDocument());
+    expect(screen.queryByTestId('project-sync-connected')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('project-sync-failed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('project-sync-disconnected')).not.toBeInTheDocument();
+  });
+});
+
+describe('Given a task with sync_status: connected', () => {
+  it('When rendered / Then the Connected indicator and a Disconnect action appear', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'connected', project_id: 'proj-1' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByTestId('project-sync-connected')).toBeInTheDocument());
+    expect(screen.getByText('Connected to Project')).toBeInTheDocument();
+    expect(screen.getByLabelText('Disconnect from Project')).toBeInTheDocument();
+  });
+
+  it('When last_synced_at is present / Then a "Last synced" timestamp is shown', async () => {
+    mockGetTaskById.mockResolvedValue(
+      makeTask({ sync_status: 'connected', project_id: 'proj-1', last_synced_at: '2026-06-10T10:00:00Z' })
+    );
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByTestId('project-sync-connected')).toBeInTheDocument());
+    expect(screen.getByText(/Last synced/)).toBeInTheDocument();
+  });
+});
+
+describe('Given a task with sync_status: sync_failed', () => {
+  it('When rendered / Then "Sync Failed" and a Retry Sync button appear', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'sync_failed' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByTestId('project-sync-failed')).toBeInTheDocument());
+    expect(screen.getByText('Sync Failed')).toBeInTheDocument();
+    expect(screen.getByText('Retry Sync')).toBeInTheDocument();
+  });
+
+  it('When the Retry Sync button is clicked / Then retryTaskProjectSync is called with the task id', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'sync_failed' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByText('Retry Sync')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Retry Sync'));
+    await waitFor(() => expect(mockRetryTaskProjectSync).toHaveBeenCalledWith('task-1'));
+  });
+});
+
+describe('Given a task with sync_status: disconnected', () => {
+  it('When rendered / Then a subtle "Previously connected" note is shown, not a persistent indicator', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'disconnected' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByTestId('project-sync-disconnected')).toBeInTheDocument());
+    expect(screen.queryByTestId('project-sync-connected')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('project-sync-failed')).not.toBeInTheDocument();
+  });
+});
+
+describe('Given the Disconnect action is triggered', () => {
+  it('When the user confirms keep_but_disconnect / Then disconnectTaskFromProject is called with that exact mode', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'connected', project_id: 'proj-1' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByLabelText('Disconnect from Project')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Disconnect from Project'));
+
+    await waitFor(() => expect(screen.getByText('Disconnect from Project')).toBeInTheDocument());
+    // keep_but_disconnect is the default-selected radio; confirm directly.
+    fireEvent.click(screen.getByText('Disconnect'));
+
+    await waitFor(() =>
+      expect(mockDisconnectTaskFromProject).toHaveBeenCalledWith('task-1', 'keep_but_disconnect')
+    );
+  });
+
+  it('When the user picks remove_project_task and confirms / Then disconnectTaskFromProject is called with that mode', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'connected', project_id: 'proj-1' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByLabelText('Disconnect from Project')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Disconnect from Project'));
+
+    await waitFor(() => expect(screen.getByText('Remove the Project task too')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Remove the Project task too'));
+    fireEvent.click(screen.getByText('Disconnect'));
+
+    await waitFor(() =>
+      expect(mockDisconnectTaskFromProject).toHaveBeenCalledWith('task-1', 'remove_project_task')
+    );
+  });
+
+  it('When Cancel is clicked / Then disconnectTaskFromProject is never called', async () => {
+    mockGetTaskById.mockResolvedValue(makeTask({ sync_status: 'connected', project_id: 'proj-1' }));
+    render(<TaskDetailPage />);
+    await waitFor(() => expect(screen.getByLabelText('Disconnect from Project')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Disconnect from Project'));
+
+    await waitFor(() => expect(screen.getByText('Disconnect from Project')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Cancel'));
+
+    expect(mockDisconnectTaskFromProject).not.toHaveBeenCalled();
   });
 });

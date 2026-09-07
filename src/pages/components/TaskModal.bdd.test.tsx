@@ -13,6 +13,9 @@ const mockShowError = vi.hoisted(() => vi.fn());
 const mockEmitNotification = vi.fn();
 const mockGetLeads = vi.fn();
 const mockGetDeals = vi.fn();
+const mockGetProjects = vi.fn();
+const mockConnectTaskToProject = vi.fn();
+const mockShowWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/crmService', () => ({
   crmService: {
@@ -21,6 +24,8 @@ vi.mock('../../services/crmService', () => ({
     updateTask: (...a: any[]) => mockUpdateTask(...a),
     getLeads: (...a: any[]) => mockGetLeads(...a),
     getDeals: (...a: any[]) => mockGetDeals(...a),
+    getProjects: (...a: any[]) => mockGetProjects(...a),
+    connectTaskToProject: (...a: any[]) => mockConnectTaskToProject(...a),
   },
 }));
 
@@ -28,7 +33,7 @@ vi.mock('@so360/design-system', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@so360/design-system')>();
   return {
     ...actual,
-    toast: { ...actual.toast, error: mockShowError },
+    toast: { ...actual.toast, error: mockShowError, warning: mockShowWarning },
   };
 });
 
@@ -103,6 +108,10 @@ const MOCK_DEALS = [
   { id: 'deal-1', name: 'Enterprise Deal', company_name: 'Acme Corp' },
   { id: 'deal-2', name: '',                company_name: 'Beta Ltd' },
 ];
+const MOCK_PROJECTS = [
+  { id: 'proj-1', name: 'Website Revamp' },
+  { id: 'proj-2', name: 'Mobile App' },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -114,6 +123,8 @@ beforeEach(() => {
   mockEmitNotification.mockResolvedValue(undefined);
   mockGetLeads.mockResolvedValue(MOCK_LEADS);
   mockGetDeals.mockResolvedValue(MOCK_DEALS);
+  mockGetProjects.mockResolvedValue(MOCK_PROJECTS);
+  mockConnectTaskToProject.mockResolvedValue({ id: 't-new', sync_status: 'connected' });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -993,5 +1004,89 @@ describe('Given a due date is being chosen', () => {
       expect(mockShowError).toHaveBeenCalledWith('Please pick a date AND time for the reminder.')
     );
     expect(mockCreateTask).not.toHaveBeenCalled();
+  });
+});
+
+// ── Project connection (optional) ───────────────────────────────────────────
+describe('Given a Deal-context task with an auto-suggested Project', () => {
+  it('When the modal renders / Then the Project dropdown is pre-selected with the Deal\'s project', async () => {
+    render(
+      <TaskModal dealId="deal-1" dealProjectId="proj-2" onClose={vi.fn()} onSuccess={vi.fn()} />
+    );
+    await waitFor(() => expect(mockGetProjects).toHaveBeenCalled());
+    const projectSelect = await screen.findByDisplayValue('Mobile App');
+    expect(projectSelect).toBeInTheDocument();
+  });
+
+  it('When rendered without a dealProjectId / Then the Project dropdown defaults to "No Project"', async () => {
+    render(<TaskModal dealId="deal-1" onClose={vi.fn()} onSuccess={vi.fn()} />);
+    await waitFor(() => expect(mockGetProjects).toHaveBeenCalled());
+    expect(screen.getByDisplayValue('No Project')).toBeInTheDocument();
+  });
+
+  it('When a Project is selected / Then the user may still clear it back to "No Project"', async () => {
+    render(
+      <TaskModal dealId="deal-1" dealProjectId="proj-2" onClose={vi.fn()} onSuccess={vi.fn()} />
+    );
+    await waitFor(() => expect(screen.getByDisplayValue('Mobile App')).toBeInTheDocument());
+    fireEvent.change(screen.getByDisplayValue('Mobile App'), { target: { value: '' } });
+    expect(screen.getByDisplayValue('No Project')).toBeInTheDocument();
+  });
+});
+
+describe('Given a user selects a Project and submits the task form', () => {
+  it('When submission succeeds / Then connectTaskToProject is called with the new task id and selected project id', async () => {
+    mockCreateTask.mockResolvedValue({ id: 'new-task-99', title: 'Task', status: 'OPEN' });
+    render(<TaskModal dealId="deal-1" onClose={vi.fn()} onSuccess={vi.fn()} />);
+    await waitFor(() => expect(mockGetProjects).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByPlaceholderText(/follow up/i), { target: { value: 'Task' } });
+    fireEvent.change(dueInput(), { target: { value: futureDate } });
+    fireEvent.change(screen.getByDisplayValue('No Project'), { target: { value: 'proj-1' } });
+
+    fireEvent.submit(document.querySelector('form')!);
+
+    await waitFor(() =>
+      expect(mockConnectTaskToProject).toHaveBeenCalledWith('new-task-99', 'proj-1')
+    );
+  });
+
+  it('When no Project is selected / Then connectTaskToProject is never called', async () => {
+    render(<TaskModal leadId="lead-1" onClose={vi.fn()} onSuccess={vi.fn()} />);
+    await waitFor(() => expect(mockGetProjects).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByPlaceholderText(/follow up/i), { target: { value: 'Task' } });
+    fireEvent.change(dueInput(), { target: { value: futureDate } });
+    fireEvent.submit(document.querySelector('form')!);
+
+    await waitFor(() => expect(mockCreateTask).toHaveBeenCalled());
+    expect(mockConnectTaskToProject).not.toHaveBeenCalled();
+  });
+});
+
+describe('Given the connect call fails after task creation succeeds', () => {
+  it('When connectTaskToProject rejects / Then the task creation flow still completes and a non-blocking notice is shown', async () => {
+    mockCreateTask.mockResolvedValue({ id: 'new-task-1', title: 'Task', status: 'OPEN' });
+    mockConnectTaskToProject.mockRejectedValue(new Error('Project not found'));
+    const onSuccess = vi.fn();
+    const onClose = vi.fn();
+
+    render(<TaskModal dealId="deal-1" onClose={onClose} onSuccess={onSuccess} />);
+    await waitFor(() => expect(mockGetProjects).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByPlaceholderText(/follow up/i), { target: { value: 'Task' } });
+    fireEvent.change(dueInput(), { target: { value: futureDate } });
+    fireEvent.change(screen.getByDisplayValue('No Project'), { target: { value: 'proj-1' } });
+    fireEvent.submit(document.querySelector('form')!);
+
+    // The task creation flow completes normally — modal closes, onSuccess fires —
+    // a failed connect must never roll back or block the already-saved task.
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-task-1' })));
+    expect(onClose).toHaveBeenCalled();
+    expect(mockShowWarning).toHaveBeenCalledWith(
+      expect.stringContaining("couldn't connect to Project: Project not found")
+    );
+    // Crucially: this is a warning notice, never the hard failure path.
+    expect(mockShowError).not.toHaveBeenCalledWith('Failed to save task. Please try again.');
   });
 });
