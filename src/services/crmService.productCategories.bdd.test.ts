@@ -64,7 +64,9 @@ describe('crmService.getProductCategories — Inventory settings prefix', () => 
 
             expect(fetchSpy).toHaveBeenCalledTimes(1);
             const calledUrl = String(fetchSpy.mock.calls[0][0]);
-            expect(calledUrl).not.toMatch(/\/settings\/[^/]+$/);
+            // The 404 shape was the origin followed straight by /settings/ —
+            // no /v1/inventory in between.
+            expect(calledUrl).not.toMatch(/\/\/[^/]+\/settings\//);
             expect(calledUrl).not.toContain('/v1/v1/');
         });
     });
