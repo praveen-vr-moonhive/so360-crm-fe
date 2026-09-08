@@ -84,6 +84,12 @@ const INBOX_API_ORIGIN = String(
     'http://localhost:3017'
 ).replace(/\/$/, '');
 
+const PROJECTS_API_ORIGIN = String(
+    win.VITE_SO360_PROJECTS_API ||
+    import.meta.env.VITE_SO360_PROJECTS_API ||
+    'http://localhost:3010'
+).replace(/\/$/, '');
+
 const API_BASE_URL = CRM_API_ORIGIN;
 let TENANT_ID = 'default-tenant';
 let ORG_ID = 'default-org';
@@ -486,6 +492,10 @@ const inboxClient = new ApiClient(INBOX_API_ORIGIN, TENANT_ID);
 // so the Neura AI Lead Copilot adds zero new logic to so360-crm-be. Neura BE
 // sets no global route prefix (routes are bare /conversations, /agents, ...).
 const neuraClient = new ApiClient(NEURA_API_ORIGIN, TENANT_ID);
+// Projects module's own backend — Task <-> Project linking and the Project
+// selector both need this. Projects BE sets no global route prefix (bare
+// /projects, matching the neuraClient comment above's pattern).
+const projectsClient = new ApiClient(PROJECTS_API_ORIGIN, TENANT_ID);
 
 // Type Definitions for API Responses
 interface LeadStatsResponse {
@@ -2404,9 +2414,22 @@ export const crmService = {
 
     async getProjects(): Promise<any[]> {
         try {
-            // Call the Projects Microservice (proxied through shell)
-            const projects = await apiClient.get<any[]>('/projects-api/projects');
-            return projects || [];
+            // Was: apiClient.get('/projects-api/projects') — apiClient is bound to
+            // CRM_API_ORIGIN, so that resolved to `${CRM_API_ORIGIN}/projects-api/projects`,
+            // a path that doesn't exist on the CRM backend (crm-be has no
+            // /projects-api prefix). Every call 404'd and was silently swallowed
+            // by this try/catch, so the Task modal's Project dropdown always
+            // showed only "No Project". Fixed to call the Projects backend
+            // directly via projectsClient (GET /projects, list capped at 100 —
+            // this is a dropdown, not a paginated table).
+            const result = await projectsClient.get<any>('/projects', { limit: 100 });
+            // findAll() on the Projects side returns { data, pagination }, not a
+            // flat array — unwrap defensively so an API shape change degrades to
+            // an empty list instead of throwing (Array.isArray(result) covers a
+            // hypothetical future flat-array response too).
+            if (Array.isArray(result)) return result;
+            if (Array.isArray(result?.data)) return result.data;
+            return [];
         } catch (error: any) {
             console.error('[CRM] Failed to fetch projects list:', error.message);
             // Return empty array instead of mock data - let UI handle empty state
@@ -2901,6 +2924,7 @@ export const crmService = {
         accountingClient.setTenantId(id);
         neuraClient.setTenantId(id);
         inboxClient.setTenantId(id);
+        projectsClient.setTenantId(id);
     },
     setOrgId: (id: string) => {
         ORG_ID = id;
@@ -2912,6 +2936,7 @@ export const crmService = {
         accountingClient.setOrgId(id);
         neuraClient.setOrgId(id);
         inboxClient.setOrgId(id);
+        projectsClient.setOrgId(id);
     },
     setUser: (user: User) => {
         CURRENT_USER = user;
@@ -2931,6 +2956,7 @@ export const crmService = {
         accountingClient.setAccessToken(token);
         neuraClient.setAccessToken(token);
         inboxClient.setAccessToken(token);
+        projectsClient.setAccessToken(token);
     },
 };
 
