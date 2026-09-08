@@ -284,8 +284,10 @@ class ApiClient {
 
             if (!response.ok) {
                 let errorMessage = `API Error: ${response.status}`;
+                let errorBody: unknown = null;
                 try {
                     const errorJson = JSON.parse(text);
+                    errorBody = errorJson;
                     if (errorJson.message) {
                         if (Array.isArray(errorJson.message)) {
                             errorMessage = errorJson.message.join(', ');
@@ -302,8 +304,12 @@ class ApiClient {
                 // identical to callers, so a 403 was indistinguishable from a
                 // missing record — which is how an access denial ended up being
                 // rendered as "Lead not found."
-                const apiError = new Error(errorMessage) as Error & { status?: number };
+                const apiError = new Error(errorMessage) as Error & { status?: number; body?: unknown };
                 apiError.status = response.status;
+                // The structured body too (a 409 names the existing record's
+                // id and type) so a form can offer "open it" rather than only
+                // repeat the sentence.
+                apiError.body = errorBody;
                 throw apiError;
             }
 

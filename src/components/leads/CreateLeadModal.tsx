@@ -137,12 +137,15 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
         if (isOpen) {
             setErrors({});
             setError(null);
+            setExistingRecord(null);
             fetchSettings();
         }
     }, [isOpen]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** A 409 from the backend: the address already belongs to this record. */
+    const [existingRecord, setExistingRecord] = useState<{ id: string; type: string | null } | null>(null);
     const [errors, setErrors] = useState<FieldErrors>({});
     const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -225,6 +228,12 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
             onSuccess();
             onClose();
         } catch (err) {
+            const body = (err as { body?: { code?: string; existing_id?: string; existing_type?: string | null } })?.body;
+            setExistingRecord(
+                body?.code === 'DUPLICATE_EMAIL' && body.existing_id
+                    ? { id: body.existing_id, type: body.existing_type ?? null }
+                    : null,
+            );
             // A rejection the backend explains (a 4xx: validation, duplicate,
             // quota, permission) carries a message worth showing verbatim.
             // Flattening every one of those into "Failed to create lead" was
@@ -252,9 +261,20 @@ export const CreateLeadModal = ({ isOpen, onClose, onSuccess, existingLeads }: C
                 )}
 
                 {error && (
-                    <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                    <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm" role="alert">
                         <AlertCircle size={18} className="shrink-0" />
-                        <p>{error}</p>
+                        <div>
+                            <p>{error}</p>
+                            {existingRecord && (
+                                <a
+                                    href={`/crm/${existingRecord.type === 'customer' ? 'customers' : 'leads'}/${existingRecord.id}`}
+                                    className="underline text-red-300 hover:text-red-200"
+                                    data-testid="open-existing-record"
+                                >
+                                    Open the existing {existingRecord.type || 'record'} →
+                                </a>
+                            )}
+                        </div>
                     </div>
                 )}
 
