@@ -486,7 +486,7 @@ const dailystoreClient = new ApiClient(DAILYSTORE_API_ORIGIN, TENANT_ID);
 const inventoryClient = new ApiClient(INVENTORY_API_ORIGIN, TENANT_ID);
 const fulfillmentClient = new ApiClient(`${FULFILLMENT_API_ORIGIN}/v1/fulfillment`, TENANT_ID);
 const accountingClient = new ApiClient(ACCOUNTING_API_ORIGIN, TENANT_ID);
-const inboxClient = new ApiClient(INBOX_API_ORIGIN, TENANT_ID);
+const inboxClient = new ApiClient(`${INBOX_API_ORIGIN}/v1/inbox`, TENANT_ID);
 // Neura AI's own public conversations API — called directly (same pattern as
 // coreClient/dailystoreClient/etc. above), not proxied through CRM's backend,
 // so the Neura AI Lead Copilot adds zero new logic to so360-crm-be. Neura BE
