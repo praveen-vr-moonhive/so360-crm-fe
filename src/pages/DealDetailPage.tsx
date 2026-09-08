@@ -118,19 +118,10 @@ const DealDetailPage = () => {
     const [fulfillmentOrder, setFulfillmentOrder] = useState<any | null>(null);
 
     const fetchProjectDetails = async (projectId: string) => {
-        try {
-            const response = await fetch(`/projects-api/projects/${projectId}`);
-            if (response.ok) {
-                const project = await response.json();
-                setProjectDetails(project);
-            } else {
-                console.error('Failed to fetch project details:', response.statusText);
-                setProjectDetails(null);
-            }
-        } catch (error) {
-            console.error('Failed to fetch project details:', error);
-            setProjectDetails(null);
-        }
+        // crmService.getProjectById() already logs its own failures and
+        // resolves null rather than throwing.
+        const project = await crmService.getProjectById(projectId);
+        setProjectDetails(project);
     };
 
     const fetchData = useCallback(async () => {

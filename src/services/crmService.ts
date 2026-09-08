@@ -2437,6 +2437,22 @@ export const crmService = {
         }
     },
 
+    async getProjectById(projectId: string): Promise<any | null> {
+        try {
+            // Same class of bug as getProjects() above: callers previously did a
+            // raw `fetch('/projects-api/projects/:id')` — a relative URL with no
+            // auth/tenant/org headers at all, resolvable only through the Vite
+            // dev-server-only proxy rule in so360-shell-fe/vite.config.ts (absent
+            // in staging/production), AND missing the Bearer/X-Tenant-Id/X-Org-Id
+            // headers this route's PermissionsGuard requires regardless. Routed
+            // through projectsClient instead, which already carries all three.
+            return await projectsClient.get<any>(`/projects/${projectId}`);
+        } catch (error: any) {
+            console.error('[CRM] Failed to fetch project details:', error.message);
+            return null;
+        }
+    },
+
     // Quotes API
     async getQuotes(filters?: { status?: string; deal_id?: string; customer_id?: string }): Promise<any[]> {
         const params = new URLSearchParams();
