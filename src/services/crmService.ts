@@ -2867,20 +2867,17 @@ export const crmService = {
     },
 
     getProductCategories: async (): Promise<Array<{ id: string; name: string }>> => {
+        // Inventory serves this under its /v1/inventory prefix. The old
+        // unprefixed `/settings/:orgId` was tried first and 404'd on every
+        // modal open before falling through to this one — same missing-prefix
+        // class as the CRM→Inventory draft-item call.
         try {
-            const res = await inventoryClient.get<any>(`/settings/${ORG_ID}`);
+            const res = await inventoryClient.get<any>(`/v1/inventory/settings/${ORG_ID}`);
             if (res?.categories && Array.isArray(res.categories)) {
                 return res.categories.map((c: any) => ({ id: c.id, name: c.name }));
             }
         } catch {
-            try {
-                const res = await inventoryClient.get<any>(`/v1/inventory/settings/${ORG_ID}`);
-                if (res?.categories && Array.isArray(res.categories)) {
-                    return res.categories.map((c: any) => ({ id: c.id, name: c.name }));
-                }
-            } catch {
-                // Return empty if inventory service is temporarily unavailable
-            }
+            // Return empty if inventory service is temporarily unavailable
         }
         return [];
     },
